@@ -74,8 +74,32 @@ app.use('/api/audit-logs', auditRouter);
 app.use('/api/health', healthRouter);
 app.use('/health', healthRouter);
 
-// Initialize WebSocket Engine
-socketServer.init(server);
+app.get('/', (req, res) => {
+  res.json({
+    status: 'ONLINE',
+    service: 'AgriSupply & Cold-Chain Logistics REST API',
+    version: '1.0.0',
+    documentation: 'https://github.com/ahmadali71/AgriSupply-Chain',
+    endpoints: {
+      health: '/api/health',
+      auth_login: '/api/auth/login',
+      users: '/api/users',
+      farms: '/api/farms',
+      batches: '/api/batches',
+      inventory: '/api/inventory',
+      warehouses: '/api/warehouses'
+    }
+  });
+});
+
+// Initialize WebSocket Engine (only on persistent servers)
+if (!process.env.VERCEL) {
+  try {
+    socketServer.init(server);
+  } catch (se: any) {
+    console.warn('[WS] WebSocketServer initialization warning:', se.message);
+  }
+}
 
 // Start IoT Simulation Engine
 if (!process.env.VERCEL && process.env.ENABLE_IOT_SIMULATOR !== 'false') {
