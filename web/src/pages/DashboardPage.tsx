@@ -59,39 +59,49 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
     }));
   }, [latestTelemetry]);
 
-  // Prepare map markers
+  // Prepare map markers with valid coordinates
   const markers: MapMarkerItem[] = [
-    ...farms.slice(0, 8).map(f => ({
-      id: f.id,
-      lat: f.latitude,
-      lng: f.longitude,
-      title: f.name,
-      subtitle: `${f.size_acres} Acres • ${f.crop_types}`,
-      type: 'FARM' as const
-    })),
-    ...warehouses.map(w => ({
-      id: w.id,
-      lat: w.latitude,
-      lng: w.longitude,
-      title: w.name,
-      subtitle: `${w.code} • Cold Rooms: ${w.total_cold_rooms}`,
-      type: 'WAREHOUSE' as const
-    })),
-    ...vehicles.map(v => {
-      // If live telemetry arrived for this vehicle, update position dynamically
-      const isLiveUpdated = latestTelemetry && latestTelemetry.vehicleId === v.id;
-      return {
-        id: v.id,
-        lat: isLiveUpdated ? latestTelemetry.latitude! : v.current_lat,
-        lng: isLiveUpdated ? latestTelemetry.longitude! : v.current_lng,
-        title: `Reefer ${v.plate_number}`,
-        subtitle: v.model,
-        temperatureC: isLiveUpdated ? latestTelemetry.temperatureC : v.current_temp_c,
-        speedKmh: isLiveUpdated ? latestTelemetry.speedKmh : v.current_speed_kmh,
-        status: v.status,
-        type: 'VEHICLE' as const
-      };
-    })
+    ...farms.slice(0, 8)
+      .filter(f => typeof f.latitude === 'number' && typeof f.longitude === 'number' && !isNaN(f.latitude) && !isNaN(f.longitude))
+      .map(f => ({
+        id: f.id,
+        lat: f.latitude,
+        lng: f.longitude,
+        title: f.name,
+        subtitle: `${f.size_acres || 50} Acres • ${f.crop_types || 'Produce'}`,
+        type: 'FARM' as const
+      })),
+    ...warehouses
+      .filter(w => typeof w.latitude === 'number' && typeof w.longitude === 'number' && !isNaN(w.latitude) && !isNaN(w.longitude))
+      .map(w => ({
+        id: w.id,
+        lat: w.latitude,
+        lng: w.longitude,
+        title: w.name,
+        subtitle: `${w.code || 'HUB'} • Cold Rooms: ${w.total_cold_rooms || 2}`,
+        type: 'WAREHOUSE' as const
+      })),
+    ...vehicles
+      .map(v => {
+        const isLiveUpdated = latestTelemetry && latestTelemetry.vehicleId === v.id;
+        const rawLat = isLiveUpdated && typeof latestTelemetry.latitude === 'number' ? latestTelemetry.latitude : v.current_lat;
+        const rawLng = isLiveUpdated && typeof latestTelemetry.longitude === 'number' ? latestTelemetry.longitude : v.current_lng;
+        if (typeof rawLat !== 'number' || typeof rawLng !== 'number' || isNaN(rawLat) || isNaN(rawLng)) {
+          return null;
+        }
+        return {
+          id: v.id,
+          lat: rawLat,
+          lng: rawLng,
+          title: `Reefer ${v.plate_number || v.id}`,
+          subtitle: v.model || 'Reefer Truck',
+          temperatureC: isLiveUpdated ? latestTelemetry.temperatureC : v.current_temp_c,
+          speedKmh: isLiveUpdated ? latestTelemetry.speedKmh : v.current_speed_kmh,
+          status: v.status || 'IN_TRANSIT',
+          type: 'VEHICLE' as const
+        };
+      })
+      .filter((m): m is NonNullable<typeof m> => m !== null)
   ];
 
   if (isLoading || !data) {

@@ -155,21 +155,27 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
     });
 
     geofences.forEach(fence => {
+      if (typeof fence?.lat !== 'number' || typeof fence?.lng !== 'number' || isNaN(fence.lat) || isNaN(fence.lng)) {
+        return;
+      }
       const color = fence.type === 'WAREHOUSE' ? '#16a34a' : (fence.type === 'DELIVERY' ? '#0284c7' : '#d97706');
       const circle = L.circle([fence.lat, fence.lng], {
-        radius: fence.radiusMeters,
+        radius: fence.radiusMeters || 500,
         color,
         fillColor: color,
         fillOpacity: 0.18,
         weight: 2,
         dashArray: '4, 4'
       });
-      circle.bindTooltip(`Geofence: ${fence.name} (${fence.radiusMeters}m)`, { permanent: false });
+      circle.bindTooltip(`Geofence: ${fence.name} (${fence.radiusMeters || 500}m)`, { permanent: false });
       layerGroup.addLayer(circle);
     });
 
     // 2. Draw Routes
     routes.forEach(route => {
+      if (!route?.from || !route?.to || typeof route.from[0] !== 'number' || typeof route.from[1] !== 'number' || typeof route.to[0] !== 'number' || typeof route.to[1] !== 'number') {
+        return;
+      }
       const polyline = L.polyline([route.from, route.to], {
         color: route.color || '#0284c7',
         weight: 3,
@@ -181,6 +187,9 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
 
     // 3. Update or Add Markers smoothly
     markers.forEach(m => {
+      if (!m || typeof m.lat !== 'number' || typeof m.lng !== 'number' || isNaN(m.lat) || isNaN(m.lng)) {
+        return; // Guard against undefined or NaN coordinates
+      }
       let iconHtml = '';
       if (m.type === 'VEHICLE') {
         const isWarning = m.temperatureC !== undefined && m.temperatureC > 8.0;
@@ -227,7 +236,7 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
 
       const popupContent = `
         <div style="font-family: sans-serif; font-size: 12px; min-width: 170px;">
-          <strong style="font-size: 13px; color: #0f172a;">${m.title}</strong><br/>
+          <strong style="font-size: 13px; color: #0f172a;">${m.title || 'Location'}</strong><br/>
           <span style="color: #64748b;">${m.subtitle || m.type}</span>
           ${m.temperatureC !== undefined ? `<div style="margin-top: 4px; font-weight: bold; color: ${m.temperatureC > 8.0 ? '#e11d48' : '#0284c7'};">🌡️ Temp: ${m.temperatureC}°C</div>` : ''}
           ${m.speedKmh !== undefined ? `<div style="color: #475569;">⚡ Speed: ${m.speedKmh} km/h</div>` : ''}
