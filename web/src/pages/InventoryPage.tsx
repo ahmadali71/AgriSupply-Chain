@@ -138,14 +138,14 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ initialTab = 'inve
       key: 'available_qty_kg',
       header: 'Available Stock',
       render: (item) => (
-        <span className="font-bold text-slate-900 dark:text-white">{item.available_qty_kg?.toLocaleString()} KG</span>
+        <span className="font-bold text-slate-900 dark:text-white">{(item.available_qty_kg ?? 0).toLocaleString()} KG</span>
       )
     },
     {
       key: 'reserved_qty_kg',
       header: 'Reserved / Picked',
       render: (item) => (
-        <span className="text-slate-500 font-semibold">{item.reserved_qty_kg?.toLocaleString()} KG</span>
+        <span className="text-slate-500 font-semibold">{(item.reserved_qty_kg ?? 0).toLocaleString()} KG</span>
       )
     },
     {
@@ -197,7 +197,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ initialTab = 'inve
       header: 'Total Surface Area',
       render: (w) => (
         <span className="font-semibold text-slate-800 dark:text-slate-200 text-xs">
-          {w.total_capacity_sqft.toLocaleString()} sqft
+          {(w.total_capacity_sqft ?? 0).toLocaleString()} sqft
         </span>
       )
     },
@@ -306,7 +306,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ initialTab = 'inve
             <div className="text-[11px] text-slate-400 truncate">{w.address}</div>
             <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between text-[11px]">
               <span className="text-slate-400">Total Sqft:</span>
-              <strong className="text-slate-800 dark:text-slate-200">{w.total_capacity_sqft.toLocaleString()} sqft</strong>
+              <strong className="text-slate-800 dark:text-slate-200">{(w.total_capacity_sqft ?? 0).toLocaleString()} sqft</strong>
             </div>
           </div>
         ))}

@@ -482,7 +482,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ initialTab = 'users' }) =>
       header: 'Timestamp',
       render: (a) => (
         <span className="text-[11px] font-mono text-slate-500">
-          {new Date(a.timestamp).toLocaleString()}
+          {a.timestamp ? new Date(a.timestamp).toLocaleString() : 'N/A'}
         </span>
       )
     },

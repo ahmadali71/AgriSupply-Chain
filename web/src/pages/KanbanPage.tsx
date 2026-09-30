@@ -71,7 +71,7 @@ export const KanbanPage: React.FC<KanbanPageProps> = ({ initialTab = 'kanban' })
     {
       key: 'total',
       header: 'Total Value',
-      render: (o) => <span className="font-mono font-bold text-emerald-600">${o.total_amount?.toLocaleString()}</span>
+      render: (o) => <span className="font-mono font-bold text-emerald-600">${(o.total_amount ?? 0).toLocaleString()}</span>
     },
     {
       key: 'stage',
@@ -137,7 +137,7 @@ export const KanbanPage: React.FC<KanbanPageProps> = ({ initialTab = 'kanban' })
     {
       key: 'timestamp',
       header: 'Completion Time',
-      render: (d) => <span className="text-xs text-slate-500">{new Date(d.timestamp).toLocaleString()}</span>
+      render: (d) => <span className="text-xs text-slate-500">{d.timestamp ? new Date(d.timestamp).toLocaleString() : 'N/A'}</span>
     }
   ];
 

@@ -247,11 +247,14 @@ export const FinancePage: React.FC<FinancePageProps> = ({ initialTab = 'invoices
     {
       key: 'amount',
       header: 'Amount ($)',
-      render: (l) => (
-        <span className={`font-mono font-bold text-xs ${l.type === 'CREDIT' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-800 dark:text-slate-200'}`}>
-          {l.type === 'CREDIT' ? '+' : '-'}${l.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-        </span>
-      )
+      render: (l) => {
+        const amt = l.amount ?? 0;
+        return (
+          <span className={`font-mono font-bold text-xs ${l.type === 'CREDIT' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-800 dark:text-slate-200'}`}>
+            {l.type === 'CREDIT' ? '+' : '-'}${amt.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+          </span>
+        );
+      }
     }
   ];
 

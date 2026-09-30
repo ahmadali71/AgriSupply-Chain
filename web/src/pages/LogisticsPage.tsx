@@ -357,25 +357,31 @@ export const LogisticsPage: React.FC<LogisticsPageProps> = ({ initialTab = 'live
     {
       key: 'capacity_kg',
       header: 'Payload Capacity',
-      render: (v) => (
-        <span className="font-semibold text-slate-800 dark:text-slate-200">
-          {(v.capacity_kg / 1000).toFixed(1)} MT ({v.capacity_kg.toLocaleString()} KG)
-        </span>
-      )
+      render: (v) => {
+        const cap = v.capacity_kg ?? 0;
+        return (
+          <span className="font-semibold text-slate-800 dark:text-slate-200">
+            {(cap / 1000).toFixed(1)} MT ({cap.toLocaleString()} KG)
+          </span>
+        );
+      }
     },
     {
       key: 'temperature',
       header: 'Live Temp & Bounds',
       render: (v) => {
-        const isSpike = v.current_temp_c > v.max_temp_c || v.current_temp_c < v.min_temp_c;
+        const cur = v.current_temp_c ?? 4.0;
+        const min = v.min_temp_c ?? 2.0;
+        const max = v.max_temp_c ?? 6.0;
+        const isSpike = cur > max || cur < min;
         return (
           <div className="flex items-center space-x-2">
             <span className={`px-2 py-0.5 rounded font-mono font-bold text-xs ${
               isSpike ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400' : 'bg-cold-100 text-cold-800 dark:bg-cold-950 dark:text-cold-300'
             }`}>
-              {v.current_temp_c}°C
+              {cur}°C
             </span>
-            <span className="text-[11px] text-slate-400">Target: {v.min_temp_c}–{v.max_temp_c}°C</span>
+            <span className="text-[11px] text-slate-400">Target: {min}–{max}°C</span>
           </div>
         );
       }

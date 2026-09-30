@@ -90,7 +90,7 @@ export const BatchesPage: React.FC<BatchesPageProps> = ({ onOpenTrace, initialTa
     {
       key: 'quantity_kg',
       header: 'Yield Quantity',
-      render: (b) => <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{b.quantity_kg?.toLocaleString()} kg</span>
+      render: (b) => <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{(b.quantity_kg ?? 0).toLocaleString()} kg</span>
     },
     {
       key: 'quality_grade',

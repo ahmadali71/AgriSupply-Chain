@@ -270,10 +270,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             <div className="mt-5 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
               <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Revenue Realized</div>
               <div className="text-xl font-extrabold text-slate-900 dark:text-white">
-                ${kpis.totalRevenue?.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                ${(kpis.totalRevenue ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </div>
               <div className="text-[11px] text-slate-500 mt-1">
-                Net Profit: <strong className="text-emerald-600">${(kpis.totalRevenue - kpis.totalExpenses).toFixed(2)}</strong>
+                Net Profit: <strong className="text-emerald-600">${((kpis.totalRevenue ?? 0) - (kpis.totalExpenses ?? 0)).toFixed(2)}</strong>
               </div>
             </div>
           </div>
