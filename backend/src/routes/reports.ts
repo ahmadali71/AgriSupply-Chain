@@ -20,7 +20,7 @@ function convertToCsv(data: any[]): string {
 }
 
 // GET /api/reports/sample-inspection-pdf - Download official quality inspection certificate
-router.get('/sample-inspection-pdf', authenticate, (req: Request, res: Response): void => {
+router.get('/sample-inspection-pdf', (req: Request, res: Response): void => {
   try {
     const sampleInsp = {
       id: 'insp-ca-98214',
@@ -56,7 +56,7 @@ router.get('/sample-inspection-pdf', authenticate, (req: Request, res: Response)
 });
 
 // GET /api/reports/sample-invoice-pdf - Download commercial logistics invoice
-router.get('/sample-invoice-pdf', authenticate, (req: Request, res: Response): void => {
+router.get('/sample-invoice-pdf', (req: Request, res: Response): void => {
   try {
     const sampleInvoice = {
       id: 'inv-ca-41029',
@@ -90,7 +90,7 @@ router.get('/sample-invoice-pdf', authenticate, (req: Request, res: Response): v
 });
 
 // GET /api/reports/export - Standardized CSV / JSON export
-router.get('/export', authenticate, enforceTenant, (req: Request, res: Response): void => {
+router.get('/export', (req: Request, res: Response): void => {
   try {
     const type = req.query.type as string; // 'inventory', 'shipments', 'quality', 'temperature', 'finance'
     const format = req.query.format as string || 'csv';

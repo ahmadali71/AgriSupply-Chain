@@ -139,13 +139,21 @@ export const ReportsPage: React.FC = () => {
     }, 200);
   };
 
+  const getApiUrl = (path: string): string => {
+    const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    const apiBase = (import.meta as any).env?.VITE_API_URL || (isLocalhost ? '' : 'https://backend-sand-mu-77.vercel.app');
+    const cleanBase = apiBase.endsWith('/') ? apiBase.slice(0, -1) : apiBase;
+    return `${cleanBase}${path}`;
+  };
+
   const handleDownloadPdf = async (doc: PdfDocItem) => {
     setDownloadingId(doc.id);
     try {
       const token = localStorage.getItem('agrisupply_token') || '';
       const tenant = localStorage.getItem('agrisupply_tenant') || 'tenant-greenvalley';
+      const targetUrl = getApiUrl(doc.endpoint);
       
-      const response = await fetch(doc.endpoint, {
+      const response = await fetch(targetUrl, {
         headers: {
           'Authorization': token ? `Bearer ${token}` : '',
           'x-tenant-id': tenant
@@ -164,7 +172,7 @@ export const ReportsPage: React.FC = () => {
       console.warn('[PDF DOWNLOAD] Direct fetch fallback to popup URL:', err);
       // Fallback: Open endpoint directly in a new tab
       const token = localStorage.getItem('agrisupply_token') || '';
-      const directUrl = `${doc.endpoint}?token=${encodeURIComponent(token)}`;
+      const directUrl = `${getApiUrl(doc.endpoint)}?token=${encodeURIComponent(token)}`;
       window.open(directUrl, '_blank');
       setSuccessId(doc.id);
       setTimeout(() => setSuccessId(null), 3000);
@@ -178,7 +186,7 @@ export const ReportsPage: React.FC = () => {
     try {
       const token = localStorage.getItem('agrisupply_token') || '';
       const tenant = localStorage.getItem('agrisupply_tenant') || 'tenant-greenvalley';
-      const endpoint = `/api/reports/export?type=${report.id}&format=csv`;
+      const endpoint = getApiUrl(`/api/reports/export?type=${report.id}&format=csv`);
 
       const response = await fetch(endpoint, {
         headers: {
