@@ -73,7 +73,7 @@ app.use('/health', healthRouter);
 socketServer.init(server);
 
 // Start IoT Simulation Engine
-if (process.env.ENABLE_IOT_SIMULATOR !== 'false') {
+if (!process.env.VERCEL && process.env.ENABLE_IOT_SIMULATOR !== 'false') {
   const interval = parseInt(process.env.SIMULATION_INTERVAL_MS || '3000');
   iotSimulator.start(interval);
 }
@@ -99,14 +99,16 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 });
 
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  console.log(`=======================================================`);
-  console.log(`🚀 AgriSupply Platform Backend Server listening on port ${PORT}`);
-  console.log(`📡 WebSocket endpoint mounted on ws://localhost:${PORT}/ws`);
-  console.log(`🏥 Health check ready at http://localhost:${PORT}/health`);
-  console.log(`=======================================================`);
-});
+if (!process.env.VERCEL) {
+  const PORT = process.env.PORT || 5000;
+  server.listen(PORT, () => {
+    console.log(`=======================================================`);
+    console.log(`🚀 AgriSupply Platform Backend Server listening on port ${PORT}`);
+    console.log(`📡 WebSocket endpoint mounted on ws://localhost:${PORT}/ws`);
+    console.log(`🏥 Health check ready at http://localhost:${PORT}/health`);
+    console.log(`=======================================================`);
+  });
+}
 
 // Graceful Shutdown
 process.on('SIGTERM', () => {

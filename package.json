@@ -5,11 +5,35 @@
   "scripts": {
     "dev:backend": "npm --prefix backend run dev",
     "dev:web": "npm --prefix web run dev",
+    "build": "npm --prefix web install && npm --prefix web run build",
     "build:backend": "npm --prefix backend run build",
     "build:web": "npm --prefix web run build",
     "seed": "npm --prefix backend run seed",
     "test:e2e": "node backend/scripts/test-e2e.js",
     "test": "npm --prefix backend test"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.8.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "jspdf": "^2.5.2",
+    "uuid": "^11.0.5",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.8",
+    "@types/node": "^22.10.7",
+    "@types/uuid": "^10.0.0",
+    "@types/ws": "^8.5.14",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
   },
   "keywords": [
     "agrisupply",
