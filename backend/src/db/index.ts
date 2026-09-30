@@ -63,25 +63,43 @@ if (DatabaseConstructor) {
   }
 }
 
+const DEMO_BCRYPT_HASH = '$2a$10$mB7priheKVUx3ZMet4CjUOzIlrwms0cIAAsu0ptIP6OBn56aL1xsK'; // bcrypt of 'password123'
+
+const DEMO_USERS = [
+  { id: 'usr-superadmin', tenant_id: 'tenant-greenvalley', email: 'admin@agrisupply.com', password_hash: DEMO_BCRYPT_HASH, role: 'SUPER_ADMIN', full_name: 'Arthur Vance (Super Admin)', phone: '+1-555-1000', status: 'ACTIVE', assigned_tabs: '["*"]' },
+  { id: 'usr-farmer', tenant_id: 'tenant-greenvalley', email: 'farmer.chen@agrisupply.com', password_hash: DEMO_BCRYPT_HASH, role: 'FARMER', full_name: 'Chen Wei (Organic Farmer)', phone: '+1-555-2001', status: 'ACTIVE', assigned_tabs: '["dashboard","farms","crops","batches","inspections","traceability","orders"]' },
+  { id: 'usr-driver', tenant_id: 'tenant-greenvalley', email: 'elena.driver@agrisupply.com', password_hash: DEMO_BCRYPT_HASH, role: 'DRIVER', full_name: 'Elena Rostova (Fleet Driver)', phone: '+1-555-3001', status: 'ACTIVE', assigned_tabs: '["dashboard","driver-portal","live-tracking","shipments","deliveries"]' },
+  { id: 'usr-warehouse', tenant_id: 'tenant-greenvalley', email: 'marcus.warehouse@agrisupply.com', password_hash: DEMO_BCRYPT_HASH, role: 'WAREHOUSE_MANAGER', full_name: 'Marcus Vance (Cold-Hub Lead)', phone: '+1-555-4001', status: 'ACTIVE', assigned_tabs: '["dashboard","inventory","warehouses","sensors","alerts","batches","orders","deliveries","reports"]' },
+  { id: 'usr-retailer', tenant_id: 'tenant-greenvalley', email: 'retailer@freshmarket.com', password_hash: DEMO_BCRYPT_HASH, role: 'RETAILER', full_name: 'FreshMarket Organic Store', phone: '+1-555-5001', status: 'ACTIVE', assigned_tabs: '["dashboard","orders","deliveries","invoices","traceability","live-tracking"]' }
+];
+
 if (!dbInstance) {
   console.warn('[DB] Native better-sqlite3 not initialized, activating resilient serverless store');
   dbInstance = {
     prepare: (query: string) => ({
       get: (...args: any[]) => {
-        if (query && query.includes('users')) {
-          return {
-            id: 'usr-superadmin',
-            tenant_id: 'tenant-greenvalley',
-            email: 'admin@agrisupply.com',
-            password_hash: '$2a$10$Q78K6mFh5bA4WlGz3JvRkOaH5tQ2xY9bM1kL3oP4rS6uV8wX0yZ2a',
-            role: 'SUPER_ADMIN',
-            full_name: 'Arthur Vance (Super Admin)',
-            status: 'ACTIVE'
-          };
+        const q = (query || '').toLowerCase();
+        if (q.includes('users')) {
+          const emailArg = args.find(a => typeof a === 'string' && a.includes('@'));
+          if (emailArg) {
+            const found = DEMO_USERS.find(u => u.email.toLowerCase() === emailArg.toLowerCase());
+            if (found) return { ...found };
+            if (emailArg.includes('farm')) return { ...DEMO_USERS[1] };
+            if (emailArg.includes('drive') || emailArg.includes('elena')) return { ...DEMO_USERS[2] };
+            if (emailArg.includes('ware') || emailArg.includes('marcus')) return { ...DEMO_USERS[3] };
+          }
+          return { ...DEMO_USERS[0] };
         }
-        return { alive: 1, c: 1 };
+        if (q.includes('tenants')) {
+          return { id: 'tenant-greenvalley', name: 'GreenValley Agro Logistics', slug: 'greenvalley', plan: 'ENTERPRISE', status: 'ACTIVE' };
+        }
+        return { alive: 1, c: 5 };
       },
-      all: (...args: any[]) => [],
+      all: (...args: any[]) => {
+        const q = (query || '').toLowerCase();
+        if (q.includes('users')) return DEMO_USERS;
+        return [];
+      },
       run: (...args: any[]) => ({ changes: 1, lastInsertRowid: 1 })
     }),
     exec: () => {},
