@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/api_client.dart';
 import '../../core/offline_storage.dart';
 import '../pod/proof_of_delivery_screen.dart';
+import '../auth/login_screen.dart';
 
 class DriverTripsScreen extends StatefulWidget {
   const DriverTripsScreen({super.key});
@@ -16,6 +17,44 @@ class _DriverTripsScreenState extends State<DriverTripsScreen> {
   bool _isLoading = true;
   bool _isOffline = false;
   int _pendingCount = 0;
+
+  Future<void> _handleSignOut() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Sign Out', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: const Text(
+          'Are you sure you want to sign out of your AgriSupply session?',
+          style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF94A3B8))),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      await ApiClient.logout();
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -97,6 +136,11 @@ class _DriverTripsScreenState extends State<DriverTripsScreen> {
             onPressed: _loadAllData,
             tooltip: 'Refresh Trips',
           ),
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+            tooltip: 'Sign Out',
+            onPressed: _handleSignOut,
+          ),
         ],
       ),
       body: _isLoading
@@ -107,6 +151,59 @@ class _DriverTripsScreenState extends State<DriverTripsScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  // Active User Persona & Sign Out Banner
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.03),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 18,
+                          backgroundColor: const Color(0xFF15803D).withOpacity(0.15),
+                          child: const Icon(Icons.person, color: Color(0xFF15803D), size: 20),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                ApiClient.currentUser?['full_name'] ?? 'Arthur Vance (Super Admin)',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A)),
+                              ),
+                              Text(
+                                '${ApiClient.currentUser?['role'] ?? 'SUPER_ADMIN'} • ${ApiClient.tenantId}',
+                                style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: _handleSignOut,
+                          icon: const Icon(Icons.logout, size: 14, color: Color(0xFFDC2626)),
+                          label: const Text('Sign Out', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFDC2626))),
+                          style: TextButton.styleFrom(
+                            backgroundColor: const Color(0xFFFEF2F2),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
                   // Connectivity Status Banner
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),

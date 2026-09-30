@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'core/api_client.dart';
+import 'features/auth/login_screen.dart';
 import 'features/trips/driver_trips_screen.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const ProviderScope(child: AgriSupplyMobileApp()));
+  final isLoggedIn = await ApiClient.restoreSession();
+  runApp(ProviderScope(child: AgriSupplyMobileApp(isLoggedIn: isLoggedIn)));
 }
 
 class AgriSupplyMobileApp extends StatelessWidget {
-  const AgriSupplyMobileApp({super.key});
+  final bool isLoggedIn;
+  const AgriSupplyMobileApp({super.key, required this.isLoggedIn});
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +27,7 @@ class AgriSupplyMobileApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const DriverTripsScreen(),
+      home: isLoggedIn ? const DriverTripsScreen() : const LoginScreen(),
     );
   }
 }

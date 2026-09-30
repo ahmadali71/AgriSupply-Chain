@@ -134,7 +134,6 @@ class _ProofOfDeliveryScreenState extends State<ProofOfDeliveryScreen> {
             ),
             child: GestureDetector(
               onPanUpdate: (details) {
-                RenderBox box = context.findRenderObject() as RenderBox;
                 setState(() => _points.add(details.localPosition));
               },
               onPanEnd: (_) => setState(() => _points.add(null)),
