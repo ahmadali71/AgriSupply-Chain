@@ -1,6 +1,8 @@
 import { offlineDb } from './offlineDb';
 
-const rawBaseUrl = (import.meta as any).env?.VITE_API_URL || '';
+const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+const defaultLiveBackend = 'https://backend-sand-mu-77.vercel.app';
+const rawBaseUrl = (import.meta as any).env?.VITE_API_URL || (isLocalhost ? '' : defaultLiveBackend);
 const BASE_URL = rawBaseUrl.endsWith('/') ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
 
 export interface ApiResponse<T = any> {
