@@ -1,0 +1,23 @@
+{
+  "name": "agrisupply-platform",
+  "version": "1.0.0",
+  "description": "Production-grade AgriSupply Chain & Smart Cold-Chain Logistics Platform",
+  "scripts": {
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:web": "npm --prefix web run dev",
+    "build:backend": "npm --prefix backend run build",
+    "build:web": "npm --prefix web run build",
+    "seed": "npm --prefix backend run seed",
+    "test:e2e": "node backend/scripts/test-e2e.js",
+    "test": "npm --prefix backend test"
+  },
+  "keywords": [
+    "agrisupply",
+    "cold-chain",
+    "iot",
+    "traceability",
+    "logistics"
+  ],
+  "author": "Antigravity Engineering",
+  "license": "MIT"
+}
