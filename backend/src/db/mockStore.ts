@@ -97,10 +97,88 @@ const INITIAL_DATA: Record<string, any[]> = {
     { id: 'sns-01', sensor_code: 'SNS-CA-7K921', tenant_id: 'tenant-greenvalley', sensor_type: 'TEMPERATURE', attached_type: 'VEHICLE', attached_id: 'veh-01', min_threshold: 1.0, max_threshold: 8.0, current_value: 3.8, secondary_value: 88, battery_pct: 94, status: 'ONLINE' },
     { id: 'sns-02', sensor_code: 'SNS-CR-ALPHA-01', tenant_id: 'tenant-greenvalley', sensor_type: 'TEMPERATURE', attached_type: 'WAREHOUSE', attached_id: 'wh-01', min_threshold: 2.0, max_threshold: 6.0, current_value: 4.0, secondary_value: 88, battery_pct: 99, status: 'ONLINE' }
   ],
-  temperature_alerts: [],
-  invoices: [],
-  payments: [],
-  expenses: [],
+  temperature_alerts: [
+    {
+      id: 'alt-001',
+      sensor_id: 'sns-01',
+      tenant_id: 'tenant-greenvalley',
+      sensor_type: 'TEMPERATURE',
+      attached_type: 'VEHICLE',
+      attached_id: 'veh-01',
+      temperature_c: 4.8,
+      severity: 'WARNING',
+      status: 'OPEN',
+      notes: 'Slight temperature variance during freeway transit',
+      timestamp: '2026-09-30 11:20:00'
+    }
+  ],
+  invoices: [
+    {
+      id: 'inv-001',
+      invoice_number: 'INV-2026-0045',
+      tenant_id: 'tenant-greenvalley',
+      order_id: 'ord-001',
+      retailer_id: 'ret-01',
+      subtotal: 8320.00,
+      tax_amount: 665.60,
+      discount_amount: 0,
+      net_payable: 8985.60,
+      currency: 'USD',
+      status: 'PAID',
+      issued_date: '2026-09-28',
+      due_date: '2026-10-28',
+      created_at: '2026-09-28 09:00:00'
+    },
+    {
+      id: 'inv-002',
+      invoice_number: 'INV-2026-0046',
+      tenant_id: 'tenant-greenvalley',
+      order_id: 'ord-002',
+      retailer_id: 'ret-02',
+      subtotal: 19500.00,
+      tax_amount: 1560.00,
+      discount_amount: 500.00,
+      net_payable: 20560.00,
+      currency: 'USD',
+      status: 'UNPAID',
+      issued_date: '2026-09-29',
+      due_date: '2026-10-29',
+      created_at: '2026-09-29 14:00:00'
+    }
+  ],
+  payments: [
+    {
+      id: 'pay-001',
+      payment_number: 'PAY-2026-0033',
+      tenant_id: 'tenant-greenvalley',
+      invoice_id: 'inv-001',
+      amount: 8985.60,
+      payment_method: 'ACH_TRANSFER',
+      transaction_reference: 'ACH-994821',
+      status: 'COMPLETED',
+      created_at: '2026-09-29 10:15:00'
+    }
+  ],
+  expenses: [
+    {
+      id: 'exp-001',
+      tenant_id: 'tenant-greenvalley',
+      category: 'COLD_CHAIN_FUEL',
+      description: 'Reefer Diesel Fuel replenishment - Vehicle CA-7K921',
+      amount: 450.00,
+      vehicle_id: 'veh-01',
+      incurred_date: '2026-09-29'
+    },
+    {
+      id: 'exp-002',
+      tenant_id: 'tenant-greenvalley',
+      category: 'FACILITY_COOLING',
+      description: 'Central Cold Hub Alpha Compressor maintenance',
+      amount: 1200.00,
+      warehouse_id: 'wh-01',
+      incurred_date: '2026-09-25'
+    }
+  ],
   audit_logs: []
 };
 
@@ -150,6 +228,87 @@ export function createResilientDbDriver() {
 
       return {
         get: (...args: any[]) => {
+          const tenantId = args.find(a => typeof a === 'string' && a.startsWith('tenant-')) || 'tenant-greenvalley';
+
+          // 1. Finance Summary Query
+          if (lower.includes('from invoices') && (lower.includes('total_billed') || lower.includes('sum('))) {
+            const invs = memoryStore.getCollection('invoices').filter(i => !i.tenant_id || i.tenant_id === tenantId);
+            const total_billed = invs.reduce((sum, i) => sum + (Number(i.net_payable) || 0), 0);
+            const total_collected = invs.filter(i => i.status === 'PAID').reduce((sum, i) => sum + (Number(i.net_payable) || 0), 0);
+            const total_outstanding = invs.filter(i => i.status === 'UNPAID' || i.status === 'PENDING').reduce((sum, i) => sum + (Number(i.net_payable) || 0), 0);
+            return {
+              total_billed,
+              total_collected,
+              total_outstanding,
+              s: total_billed,
+              c: invs.length,
+              count: invs.length
+            };
+          }
+
+          // 2. Expenses Summary Query
+          if (lower.includes('from expenses') && (lower.includes('total_expenses') || lower.includes('sum('))) {
+            const exps = memoryStore.getCollection('expenses').filter(e => !e.tenant_id || e.tenant_id === tenantId);
+            const total_expenses = exps.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+            return {
+              total_expenses,
+              s: total_expenses,
+              c: exps.length,
+              count: exps.length
+            };
+          }
+
+          // 3. Quality Inspections Aggregation
+          if (lower.includes('from quality_inspections') && (lower.includes('count(') || lower.includes('passed') || lower.includes('failed'))) {
+            const insps = memoryStore.getCollection('quality_inspections').filter(i => !i.tenant_id || i.tenant_id === tenantId);
+            const passed = insps.filter(i => i.result === 'PASSED').length;
+            const failed = insps.filter(i => i.result === 'FAILED' || i.result === 'REJECTED').length;
+            return {
+              total: insps.length,
+              passed,
+              failed,
+              c: insps.length,
+              count: insps.length
+            };
+          }
+
+          // 4. Generic COUNT(*) or SUM(...) query
+          if (lower.includes('count(') || lower.includes('sum(') || lower.includes('ifnull(sum(')) {
+            for (const key of Object.keys(memoryStore.data)) {
+              if (lower.includes(`from ${key}`)) {
+                let items = memoryStore.getCollection(key).filter(x => !x.tenant_id || x.tenant_id === tenantId);
+
+                if (lower.includes("status = 'in_transit'")) {
+                  items = items.filter(x => x.status === 'IN_TRANSIT');
+                } else if (lower.includes("status = 'delivered'")) {
+                  items = items.filter(x => x.status === 'DELIVERED');
+                } else if (lower.includes("status != 'delivered'")) {
+                  items = items.filter(x => x.status !== 'DELIVERED');
+                } else if (lower.includes("status = 'open'")) {
+                  items = items.filter(x => x.status === 'OPEN');
+                }
+
+                let sumVal = 0;
+                if (lower.includes('available_qty_kg')) {
+                  sumVal = items.reduce((acc, x) => acc + (Number(x.available_qty_kg) || 0), 0);
+                } else if (lower.includes('net_payable')) {
+                  sumVal = items.reduce((acc, x) => acc + (Number(x.net_payable) || 0), 0);
+                } else if (lower.includes('amount')) {
+                  sumVal = items.reduce((acc, x) => acc + (Number(x.amount) || 0), 0);
+                }
+
+                return {
+                  c: items.length,
+                  count: items.length,
+                  s: sumVal,
+                  sum: sumVal,
+                  total: items.length
+                };
+              }
+            }
+            return { c: 0, count: 0, s: 0, sum: 0, total: 0 };
+          }
+
           // Users
           if (lower.includes('from users')) {
             const users = memoryStore.getCollection('users');
@@ -414,6 +573,40 @@ export function createResilientDbDriver() {
                 max_temp_c: b?.max_temp_c || 8.0,
                 inspector_name: u?.full_name || 'Alex Wong',
                 farm_name: f?.name || 'Valley Green Farm'
+              };
+            });
+          }
+
+          // Invoices
+          if (lower.includes('from invoices')) {
+            const invs = memoryStore.getCollection('invoices').filter(i => !i.tenant_id || i.tenant_id === tenantId);
+            const rets = memoryStore.getCollection('retailers');
+            const ords = memoryStore.getCollection('orders');
+            return invs.map(i => {
+              const r = rets.find(x => x.id === i.retailer_id);
+              const o = ords.find(x => x.id === i.order_id);
+              return {
+                ...i,
+                retailer_name: r?.name || 'Metro Fresh Supermarkets',
+                contact_person: r?.contact_person || 'Rachel Adams',
+                order_number: o?.order_number || 'ORD-2026-001',
+                product_name: o?.product_name || 'Roma Tomatoes Grade A'
+              };
+            });
+          }
+
+          // Expenses
+          if (lower.includes('from expenses')) {
+            const exps = memoryStore.getCollection('expenses').filter(e => !e.tenant_id || e.tenant_id === tenantId);
+            const vehs = memoryStore.getCollection('vehicles');
+            const whs = memoryStore.getCollection('warehouses');
+            return exps.map(e => {
+              const v = vehs.find(x => x.id === e.vehicle_id);
+              const w = whs.find(x => x.id === e.warehouse_id);
+              return {
+                ...e,
+                vehicle_plate: v?.plate_number || 'CA-7K921',
+                warehouse_name: w?.name || 'Central Cold Hub Alpha'
               };
             });
           }

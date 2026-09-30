@@ -11,30 +11,32 @@ router.get('/dashboard', authenticate, enforceTenant, (req: Request, res: Respon
     const t = req.tenantId;
 
     // Counts
-    const totalFarms = (db.prepare('SELECT COUNT(*) as c FROM farms WHERE tenant_id = ?').get(t) as any).c;
-    const totalFarmers = (db.prepare('SELECT COUNT(*) as c FROM farmers WHERE tenant_id = ?').get(t) as any).c;
-    const activeShipments = (db.prepare("SELECT COUNT(*) as c FROM shipments WHERE tenant_id = ? AND status = 'IN_TRANSIT'").get(t) as any).c;
-    const activeVehicles = (db.prepare("SELECT COUNT(*) as c FROM vehicles WHERE tenant_id = ? AND status = 'IN_TRANSIT'").get(t) as any).c;
-    const currentInventoryKg = (db.prepare('SELECT IFNULL(SUM(available_qty_kg), 0) as s FROM inventory WHERE tenant_id = ?').get(t) as any).s;
-    const pendingOrders = (db.prepare("SELECT COUNT(*) as c FROM orders WHERE tenant_id = ? AND status != 'DELIVERED'").get(t) as any).c;
-    const deliveredOrders = (db.prepare("SELECT COUNT(*) as c FROM orders WHERE tenant_id = ? AND status = 'DELIVERED'").get(t) as any).c;
-    const openAlerts = (db.prepare("SELECT COUNT(*) as c FROM temperature_alerts WHERE tenant_id = ? AND status = 'OPEN'").get(t) as any).c;
-    const criticalAlerts = (db.prepare("SELECT COUNT(*) as c FROM temperature_alerts WHERE tenant_id = ? AND severity = 'CRITICAL' AND status = 'OPEN'").get(t) as any).c;
+    const totalFarms = Number((db.prepare('SELECT COUNT(*) as c FROM farms WHERE tenant_id = ?').get(t) as any)?.c) || 0;
+    const totalFarmers = Number((db.prepare('SELECT COUNT(*) as c FROM farmers WHERE tenant_id = ?').get(t) as any)?.c) || 0;
+    const activeShipments = Number((db.prepare("SELECT COUNT(*) as c FROM shipments WHERE tenant_id = ? AND status = 'IN_TRANSIT'").get(t) as any)?.c) || 0;
+    const activeVehicles = Number((db.prepare("SELECT COUNT(*) as c FROM vehicles WHERE tenant_id = ? AND status = 'IN_TRANSIT'").get(t) as any)?.c) || 0;
+    const currentInventoryKg = Number((db.prepare('SELECT IFNULL(SUM(available_qty_kg), 0) as s FROM inventory WHERE tenant_id = ?').get(t) as any)?.s) || 0;
+    const pendingOrders = Number((db.prepare("SELECT COUNT(*) as c FROM orders WHERE tenant_id = ? AND status != 'DELIVERED'").get(t) as any)?.c) || 0;
+    const deliveredOrders = Number((db.prepare("SELECT COUNT(*) as c FROM orders WHERE tenant_id = ? AND status = 'DELIVERED'").get(t) as any)?.c) || 0;
+    const openAlerts = Number((db.prepare("SELECT COUNT(*) as c FROM temperature_alerts WHERE tenant_id = ? AND status = 'OPEN'").get(t) as any)?.c) || 0;
+    const criticalAlerts = Number((db.prepare("SELECT COUNT(*) as c FROM temperature_alerts WHERE tenant_id = ? AND severity = 'CRITICAL' AND status = 'OPEN'").get(t) as any)?.c) || 0;
 
     // Financials
-    const totalRevenue = (db.prepare('SELECT IFNULL(SUM(net_payable), 0) as s FROM invoices WHERE tenant_id = ?').get(t) as any).s;
-    const totalExpenses = (db.prepare('SELECT IFNULL(SUM(amount), 0) as s FROM expenses WHERE tenant_id = ?').get(t) as any).s;
+    const totalRevenue = Number((db.prepare('SELECT IFNULL(SUM(net_payable), 0) as s FROM invoices WHERE tenant_id = ?').get(t) as any)?.s) || 0;
+    const totalExpenses = Number((db.prepare('SELECT IFNULL(SUM(amount), 0) as s FROM expenses WHERE tenant_id = ?').get(t) as any)?.s) || 0;
 
     // Quality stats
-    const inspections = db.prepare(`
+    const inspections = (db.prepare(`
       SELECT 
         COUNT(*) as total,
         SUM(CASE WHEN result = 'PASSED' THEN 1 ELSE 0 END) as passed,
         SUM(CASE WHEN result = 'FAILED' THEN 1 ELSE 0 END) as failed
       FROM quality_inspections WHERE tenant_id = ?
-    `).get(t) as any;
+    `).get(t) as any) || { total: 0, passed: 0, failed: 0 };
 
-    const passRate = inspections.total > 0 ? +((inspections.passed / inspections.total) * 100).toFixed(1) : 100;
+    const inspTotal = Number(inspections.total) || 0;
+    const inspPassed = Number(inspections.passed) || 0;
+    const passRate = inspTotal > 0 ? +((inspPassed / inspTotal) * 100).toFixed(1) : 100;
     const spoilageRate = 1.8; // Industry baseline
 
     // Recent shipments for timeline

@@ -103,27 +103,31 @@ router.get('/expenses', authenticate, enforceTenant, (req: Request, res: Respons
 // GET /api/finance/summary
 router.get('/summary', authenticate, enforceTenant, (req: Request, res: Response): void => {
   try {
-    const rev = db.prepare(`
+    const rev = (db.prepare(`
       SELECT IFNULL(SUM(net_payable), 0) as total_billed,
              IFNULL(SUM(CASE WHEN status = 'PAID' THEN net_payable ELSE 0 END), 0) as total_collected,
              IFNULL(SUM(CASE WHEN status = 'UNPAID' THEN net_payable ELSE 0 END), 0) as total_outstanding
       FROM invoices WHERE tenant_id = ?
-    `).get(req.tenantId) as any;
+    `).get(req.tenantId) as any) || { total_billed: 0, total_collected: 0, total_outstanding: 0 };
 
-    const exp = db.prepare(`
+    const exp = (db.prepare(`
       SELECT IFNULL(SUM(amount), 0) as total_expenses
       FROM expenses WHERE tenant_id = ?
-    `).get(req.tenantId) as any;
+    `).get(req.tenantId) as any) || { total_expenses: 0 };
 
-    const netProfit = rev.total_collected - exp.total_expenses;
+    const totalBilled = Number(rev.total_billed) || 0;
+    const totalCollected = Number(rev.total_collected) || 0;
+    const totalOutstanding = Number(rev.total_outstanding) || 0;
+    const totalExpenses = Number(exp.total_expenses) || 0;
+    const netProfit = totalCollected - totalExpenses;
 
     res.json({
       success: true,
       data: {
-        totalBilled: rev.total_billed,
-        totalCollected: rev.total_collected,
-        totalOutstanding: rev.total_outstanding,
-        totalExpenses: exp.total_expenses,
+        totalBilled,
+        totalCollected,
+        totalOutstanding,
+        totalExpenses,
         netProfit
       }
     });
