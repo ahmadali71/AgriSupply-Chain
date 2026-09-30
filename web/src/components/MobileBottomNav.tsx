@@ -125,7 +125,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ currentView, o
       {/* 5. Mobile Sign Out */}
       <button
         onClick={logout}
-        className="flex flex-col items-center justify-center py-1 px-2 rounded-xl text-rose-500 hover:text-rose-600 transition-colors"
+        className="flex flex-col items-center justify-center py-1 px-2.5 rounded-xl text-rose-500 hover:text-rose-600 active:scale-90 active:bg-rose-50 dark:active:bg-rose-950/60 transition-all cursor-pointer"
         title="Sign Out"
       >
         <LogOut className="w-5 h-5 mb-0.5" />

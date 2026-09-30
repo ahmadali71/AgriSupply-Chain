@@ -191,11 +191,11 @@ export const TopNav: React.FC<TopNavProps> = ({
         {user && (
           <button
             onClick={logout}
-            className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60 text-xs font-bold hover:bg-rose-100 dark:hover:bg-rose-900/80 transition-colors"
+            className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60 text-xs font-bold hover:bg-rose-100 dark:hover:bg-rose-900/80 active:scale-95 transition-all cursor-pointer"
             title="Sign out of your session"
           >
             <LogOut className="w-3.5 h-3.5 shrink-0" />
-            <span className="hidden sm:inline">Sign Out</span>
+            <span className="text-[11px] font-bold">Sign Out</span>
           </button>
         )}
       </div>

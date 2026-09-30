@@ -107,18 +107,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: false, error: res.error || 'Registration failed' };
   };
 
-  const logout = async () => {
-    try {
-      await api.post('/api/auth/logout', {});
-    } catch (e) {
-      // Ignore network errors on logout
-    }
+  const logout = async (): Promise<void> => {
     localStorage.setItem('agrisupply_logged_out', 'true');
     localStorage.removeItem('agrisupply_token');
     api.setToken(null);
     setUser(null);
     setTenant(null);
-    setIsAuthModalOpen(true);
+    setIsAuthModalOpen(false);
+
+    // Non-blocking background server cleanup
+    api.post('/api/auth/logout', {}).catch(() => {});
   };
 
   const switchRole = async (role: string, tId?: string) => {
