@@ -157,4 +157,59 @@ router.get('/trace/:identifier', (req: Request, res: Response): void => {
   }
 });
 
+// PUT /api/batches/:id (Edit Batch Details)
+router.put('/:id', authenticate, enforceTenant, (req: Request, res: Response): void => {
+  try {
+    const { id } = req.params;
+    const { product_name, quantity_kg, available_kg, quality_grade, expiry_date, min_temp_c, max_temp_c, status } = req.body;
+
+    const existing = db.prepare('SELECT * FROM batches WHERE id = ? AND tenant_id = ?').get(id, req.tenantId) as any;
+    if (!existing) {
+      res.status(404).json({ success: false, error: 'Batch not found' });
+      return;
+    }
+
+    db.prepare(`
+      UPDATE batches SET product_name = ?, quantity_kg = ?, available_kg = ?, quality_grade = ?, expiry_date = ?, min_temp_c = ?, max_temp_c = ?, status = ?
+      WHERE id = ?
+    `).run(
+      product_name || existing.product_name,
+      quantity_kg !== undefined ? quantity_kg : existing.quantity_kg,
+      available_kg !== undefined ? available_kg : (quantity_kg !== undefined ? quantity_kg : existing.available_kg),
+      quality_grade || existing.quality_grade,
+      expiry_date || existing.expiry_date,
+      min_temp_c !== undefined ? min_temp_c : existing.min_temp_c,
+      max_temp_c !== undefined ? max_temp_c : existing.max_temp_c,
+      status || existing.status,
+      id
+    );
+
+    logAudit({ req, action: 'UPDATE_BATCH', module: 'BATCH', recordId: String(id), newValues: req.body });
+
+    const updated = db.prepare('SELECT * FROM batches WHERE id = ?').get(id);
+    res.json({ success: true, data: updated });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// DELETE /api/batches/:id (Delete Batch)
+router.delete('/:id', authenticate, enforceTenant, (req: Request, res: Response): void => {
+  try {
+    const { id } = req.params;
+    const existing = db.prepare('SELECT * FROM batches WHERE id = ? AND tenant_id = ?').get(id, req.tenantId);
+    if (!existing) {
+      res.status(404).json({ success: false, error: 'Batch not found' });
+      return;
+    }
+
+    db.prepare('DELETE FROM batches WHERE id = ?').run(id);
+    logAudit({ req, action: 'DELETE_BATCH', module: 'BATCH', recordId: String(id) });
+
+    res.json({ success: true, message: 'Batch deleted successfully', id });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 export default router;

@@ -137,4 +137,23 @@ router.get('/:id/pdf', authenticate, (req: Request, res: Response): void => {
   }
 });
 
+// DELETE /api/inspections/:id (Delete Inspection)
+router.delete('/:id', authenticate, enforceTenant, (req: Request, res: Response): void => {
+  try {
+    const { id } = req.params;
+    const existing = db.prepare('SELECT * FROM quality_inspections WHERE id = ? AND tenant_id = ?').get(id, req.tenantId);
+    if (!existing) {
+      res.status(404).json({ success: false, error: 'Inspection not found' });
+      return;
+    }
+
+    db.prepare('DELETE FROM quality_inspections WHERE id = ?').run(id);
+    logAudit({ req, action: 'DELETE_INSPECTION', module: 'INSPECTION', recordId: String(id) });
+
+    res.json({ success: true, message: 'Inspection record deleted successfully', id });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 export default router;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sprout, MapPin, CloudSun, Plus, Search, CheckCircle2, Phone, Award } from 'lucide-react';
+import { Sprout, MapPin, CloudSun, Plus, Search, CheckCircle2, Phone, Award, Edit2, Trash2 } from 'lucide-react';
 import { Farm } from '../types';
 import { api } from '../services/api';
 import { DataTable, Column } from '../components/DataTable';
@@ -20,6 +20,18 @@ export const FarmsPage: React.FC = () => {
   const [cropTypes, setCropTypes] = useState('Organic Berries, Romaine');
   const [capacityTons, setCapacityTons] = useState(400);
   const [certification, setCertification] = useState('USDA_ORGANIC');
+
+  // Edit Farm form
+  const [editingFarm, setEditingFarm] = useState<Farm | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editLocation, setEditLocation] = useState('');
+  const [editLat, setEditLat] = useState(36.6777);
+  const [editLng, setEditLng] = useState(-121.6555);
+  const [editSize, setEditSize] = useState(150);
+  const [editCrops, setEditCrops] = useState('');
+  const [editCapacity, setEditCapacity] = useState(400);
+  const [editCert, setEditCert] = useState('USDA_ORGANIC');
 
   const fetchFarms = async () => {
     setIsLoading(true);
@@ -61,9 +73,72 @@ export const FarmsPage: React.FC = () => {
 
     if (res.success) {
       setIsModalOpen(false);
+      setName('');
+      setLocation('');
       fetchFarms();
     } else {
       alert(res.error || 'Failed to create farm');
+    }
+  };
+
+  const openEditFarm = (f: Farm, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setEditingFarm(f);
+    setEditName(f.name);
+    setEditLocation(f.location);
+    setEditLat(f.latitude);
+    setEditLng(f.longitude);
+    setEditSize(f.size_acres);
+    setEditCrops(f.crop_types || '');
+    setEditCapacity(f.capacity_tons || 100);
+    setEditCert(f.certification || 'USDA_ORGANIC');
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateFarm = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingFarm) return;
+    const res = await api.put(`/api/farms/${editingFarm.id}`, {
+      name: editName,
+      location: editLocation,
+      latitude: editLat,
+      longitude: editLng,
+      size_acres: editSize,
+      crop_types: editCrops,
+      capacity_tons: editCapacity,
+      certification: editCert
+    });
+    if (res.success) {
+      setIsEditModalOpen(false);
+      setEditingFarm(null);
+      await fetchFarms();
+      if (selectedFarm?.id === editingFarm.id) {
+        loadFarmDetail({
+          ...editingFarm,
+          name: editName,
+          location: editLocation,
+          latitude: editLat,
+          longitude: editLng,
+          size_acres: editSize,
+          crop_types: editCrops,
+          capacity_tons: editCapacity,
+          certification: editCert
+        });
+      }
+    } else {
+      alert(res.error || 'Failed to update farm');
+    }
+  };
+
+  const handleDeleteFarm = async (f: Farm, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!window.confirm(`Are you sure you want to delete farm "${f.name}"?`)) return;
+    const res = await api.delete(`/api/farms/${f.id}`);
+    if (res.success) {
+      if (selectedFarm?.id === f.id) setSelectedFarm(null);
+      await fetchFarms();
+    } else {
+      alert(res.error || 'Failed to delete farm');
     }
   };
 
@@ -115,6 +190,28 @@ export const FarmsPage: React.FC = () => {
           <span>{f.certification?.replace('_', ' ')}</span>
         </span>
       )
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (f) => (
+        <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={(e) => openEditFarm(f, e)}
+            title="Edit Farm"
+            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
+          >
+            <Edit2 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={(e) => handleDeleteFarm(f, e)}
+            title="Delete Farm"
+            className="p-1.5 rounded-lg border border-rose-200 dark:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )
     }
   ];
 
@@ -152,9 +249,25 @@ export const FarmsPage: React.FC = () => {
             <div className="glass-panel p-5 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Selected Farm Origin</span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-agri-100 text-agri-800 dark:bg-agri-950 dark:text-agri-300">
-                  {selectedFarm.status}
-                </span>
+                <div className="flex items-center space-x-2">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-agri-100 text-agri-800 dark:bg-agri-950 dark:text-agri-300">
+                    {selectedFarm.status}
+                  </span>
+                  <button
+                    onClick={() => openEditFarm(selectedFarm)}
+                    className="p-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
+                    title="Edit Farm"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteFarm(selectedFarm)}
+                    className="p-1 rounded-lg border border-rose-200 dark:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400"
+                    title="Delete Farm"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
 
               <div>
@@ -329,6 +442,122 @@ export const FarmsPage: React.FC = () => {
                   className="px-4 py-2 bg-agri-600 hover:bg-agri-700 text-white font-bold rounded-xl shadow"
                 >
                   Save Farm
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Farm Modal */}
+      {isEditModalOpen && editingFarm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 w-full max-w-md p-6 shadow-2xl space-y-4">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">Edit Production Farm</h3>
+            <form onSubmit={handleUpdateFarm} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Farm Name</label>
+                <input
+                  type="text"
+                  required
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Location Description</label>
+                <input
+                  type="text"
+                  required
+                  value={editLocation}
+                  onChange={e => setEditLocation(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Latitude</label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    value={editLat}
+                    onChange={e => setEditLat(parseFloat(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Longitude</label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    value={editLng}
+                    onChange={e => setEditLng(parseFloat(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Size (Acres)</label>
+                  <input
+                    type="number"
+                    value={editSize}
+                    onChange={e => setEditSize(parseFloat(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Capacity (Tons)</label>
+                  <input
+                    type="number"
+                    value={editCapacity}
+                    onChange={e => setEditCapacity(parseFloat(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Crops Produced</label>
+                <input
+                  type="text"
+                  value={editCrops}
+                  onChange={e => setEditCrops(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Certification</label>
+                <select
+                  value={editCert}
+                  onChange={e => setEditCert(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl"
+                >
+                  <option value="USDA_ORGANIC">USDA Organic</option>
+                  <option value="GLOBAL_GAP">GLOBAL G.A.P.</option>
+                  <option value="FAIR_TRADE">Fair Trade Certified</option>
+                  <option value="REGENERATIVE">Regenerative Organic</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-xl font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-agri-600 hover:bg-agri-700 text-white font-bold rounded-xl shadow"
+                >
+                  Update Farm
                 </button>
               </div>
             </form>

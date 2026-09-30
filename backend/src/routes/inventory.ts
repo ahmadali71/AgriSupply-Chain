@@ -138,4 +138,56 @@ router.get('/transactions', authenticate, enforceTenant, (req: Request, res: Res
   }
 });
 
+// PUT /api/inventory/:id (Edit Inventory item / Quantity adjustment)
+router.put('/:id', authenticate, enforceTenant, (req: Request, res: Response): void => {
+  try {
+    const { id } = req.params;
+    const { available_qty_kg, reserved_qty_kg, damaged_qty_kg, status, expiry_date } = req.body;
+
+    const existing = db.prepare('SELECT * FROM inventory WHERE id = ? AND tenant_id = ?').get(id, req.tenantId) as any;
+    if (!existing) {
+      res.status(404).json({ success: false, error: 'Inventory record not found' });
+      return;
+    }
+
+    db.prepare(`
+      UPDATE inventory SET available_qty_kg = ?, reserved_qty_kg = ?, damaged_qty_kg = ?, status = ?, expiry_date = ?
+      WHERE id = ?
+    `).run(
+      available_qty_kg !== undefined ? available_qty_kg : existing.available_qty_kg,
+      reserved_qty_kg !== undefined ? reserved_qty_kg : existing.reserved_qty_kg,
+      damaged_qty_kg !== undefined ? damaged_qty_kg : existing.damaged_qty_kg,
+      status || existing.status,
+      expiry_date || existing.expiry_date,
+      id
+    );
+
+    logAudit({ req, action: 'UPDATE_INVENTORY', module: 'INVENTORY', recordId: String(id), newValues: req.body });
+
+    const updated = db.prepare('SELECT * FROM inventory WHERE id = ?').get(id);
+    res.json({ success: true, data: updated });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// DELETE /api/inventory/:id (Delete / Scrap inventory item)
+router.delete('/:id', authenticate, enforceTenant, (req: Request, res: Response): void => {
+  try {
+    const { id } = req.params;
+    const existing = db.prepare('SELECT * FROM inventory WHERE id = ? AND tenant_id = ?').get(id, req.tenantId);
+    if (!existing) {
+      res.status(404).json({ success: false, error: 'Inventory record not found' });
+      return;
+    }
+
+    db.prepare('DELETE FROM inventory WHERE id = ?').run(id);
+    logAudit({ req, action: 'DELETE_INVENTORY', module: 'INVENTORY', recordId: String(id) });
+
+    res.json({ success: true, message: 'Inventory record deleted successfully', id });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 export default router;

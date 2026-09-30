@@ -100,4 +100,78 @@ router.post('/harvests', authenticate, enforceTenant, (req: Request, res: Respon
   }
 });
 
+// PUT /api/crops/:id (Edit Crop)
+router.put('/:id', authenticate, enforceTenant, (req: Request, res: Response): void => {
+  try {
+    const { id } = req.params;
+    const { name, variety, season, planting_date, expected_harvest_date, estimated_qty_kg, quality_grade, lifecycle_status } = req.body;
+
+    const existing = db.prepare('SELECT * FROM crops WHERE id = ? AND tenant_id = ?').get(id, req.tenantId) as any;
+    if (!existing) {
+      res.status(404).json({ success: false, error: 'Crop not found' });
+      return;
+    }
+
+    db.prepare(`
+      UPDATE crops SET name = ?, variety = ?, season = ?, planting_date = ?, expected_harvest_date = ?, estimated_qty_kg = ?, quality_grade = ?, lifecycle_status = ?
+      WHERE id = ?
+    `).run(
+      name || existing.name,
+      variety || existing.variety,
+      season || existing.season,
+      planting_date || existing.planting_date,
+      expected_harvest_date || existing.expected_harvest_date,
+      estimated_qty_kg !== undefined ? estimated_qty_kg : existing.estimated_qty_kg,
+      quality_grade || existing.quality_grade,
+      lifecycle_status || existing.lifecycle_status,
+      id
+    );
+
+    logAudit({ req, action: 'UPDATE_CROP', module: 'CROP', recordId: String(id), newValues: req.body });
+
+    const updated = db.prepare('SELECT * FROM crops WHERE id = ?').get(id);
+    res.json({ success: true, data: updated });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// DELETE /api/crops/:id (Delete Crop)
+router.delete('/:id', authenticate, enforceTenant, (req: Request, res: Response): void => {
+  try {
+    const { id } = req.params;
+    const existing = db.prepare('SELECT * FROM crops WHERE id = ? AND tenant_id = ?').get(id, req.tenantId);
+    if (!existing) {
+      res.status(404).json({ success: false, error: 'Crop not found' });
+      return;
+    }
+
+    db.prepare('DELETE FROM crops WHERE id = ?').run(id);
+    logAudit({ req, action: 'DELETE_CROP', module: 'CROP', recordId: String(id) });
+
+    res.json({ success: true, message: 'Crop deleted successfully', id });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// DELETE /api/crops/harvests/:id (Delete Harvest)
+router.delete('/harvests/:id', authenticate, enforceTenant, (req: Request, res: Response): void => {
+  try {
+    const { id } = req.params;
+    const existing = db.prepare('SELECT * FROM harvests WHERE id = ? AND tenant_id = ?').get(id, req.tenantId);
+    if (!existing) {
+      res.status(404).json({ success: false, error: 'Harvest not found' });
+      return;
+    }
+
+    db.prepare('DELETE FROM harvests WHERE id = ?').run(id);
+    logAudit({ req, action: 'DELETE_HARVEST', module: 'HARVEST', recordId: String(id) });
+
+    res.json({ success: true, message: 'Harvest deleted successfully', id });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 export default router;

@@ -130,4 +130,62 @@ router.get('/retailers/all', authenticate, enforceTenant, (req: Request, res: Re
   }
 });
 
+// PUT /api/orders/:id (Edit Order)
+router.put('/:id', authenticate, enforceTenant, (req: Request, res: Response): void => {
+  try {
+    const { id } = req.params;
+    const { requested_qty_kg, unit_price, total_amount, delivery_address, priority, status, pipeline_stage } = req.body;
+
+    const existing = db.prepare('SELECT * FROM orders WHERE id = ? AND tenant_id = ?').get(id, req.tenantId) as any;
+    if (!existing) {
+      res.status(404).json({ success: false, error: 'Order not found' });
+      return;
+    }
+
+    const newQty = requested_qty_kg !== undefined ? requested_qty_kg : existing.requested_qty_kg;
+    const newPrice = unit_price !== undefined ? unit_price : existing.unit_price;
+    const newTotal = total_amount !== undefined ? total_amount : (newQty * newPrice);
+
+    db.prepare(`
+      UPDATE orders SET requested_qty_kg = ?, unit_price = ?, total_amount = ?, delivery_address = ?, priority = ?, status = ?, pipeline_stage = ?
+      WHERE id = ?
+    `).run(
+      newQty,
+      newPrice,
+      newTotal,
+      delivery_address || existing.delivery_address,
+      priority || existing.priority,
+      status || existing.status,
+      pipeline_stage || existing.pipeline_stage,
+      id
+    );
+
+    logAudit({ req, action: 'UPDATE_ORDER', module: 'ORDER', recordId: String(id), newValues: req.body });
+
+    const updated = db.prepare('SELECT * FROM orders WHERE id = ?').get(id);
+    res.json({ success: true, data: updated });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// DELETE /api/orders/:id (Delete Order)
+router.delete('/:id', authenticate, enforceTenant, (req: Request, res: Response): void => {
+  try {
+    const { id } = req.params;
+    const existing = db.prepare('SELECT * FROM orders WHERE id = ? AND tenant_id = ?').get(id, req.tenantId);
+    if (!existing) {
+      res.status(404).json({ success: false, error: 'Order not found' });
+      return;
+    }
+
+    db.prepare('DELETE FROM orders WHERE id = ?').run(id);
+    logAudit({ req, action: 'DELETE_ORDER', module: 'ORDER', recordId: String(id) });
+
+    res.json({ success: true, message: 'Order deleted successfully', id });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 export default router;

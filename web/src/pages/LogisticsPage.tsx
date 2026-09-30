@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Truck, MapPin, Plus, Navigation, Battery, Fuel,
   Thermometer, ShieldAlert, Send, Shield, AlertTriangle,
-  Clock, CheckCircle2, Radio, Compass, RefreshCw
+  Clock, CheckCircle2, Radio, Compass, RefreshCw, Edit2, Trash2
 } from 'lucide-react';
 import { Vehicle, Shipment, Batch, Geofence } from '../types';
 import { api } from '../services/api';
@@ -58,6 +58,16 @@ export const LogisticsPage: React.FC<LogisticsPageProps> = ({ initialTab = 'live
   const [newCapacity, setNewCapacity] = useState(12000);
   const [newMinTemp, setNewMinTemp] = useState(1.0);
   const [newMaxTemp, setNewMaxTemp] = useState(6.0);
+
+  // Edit Vehicle form
+  const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
+  const [isEditVehicleOpen, setIsEditVehicleOpen] = useState(false);
+  const [editPlate, setEditPlate] = useState('');
+  const [editModel, setEditModel] = useState('');
+  const [editCapacity, setEditCapacity] = useState(12000);
+  const [editMinTemp, setEditMinTemp] = useState(1.0);
+  const [editMaxTemp, setEditMaxTemp] = useState(6.0);
+  const [editStatus, setEditStatus] = useState('AVAILABLE');
 
   // New Geofence form
   const [fenceName, setFenceName] = useState('');
@@ -246,6 +256,57 @@ export const LogisticsPage: React.FC<LogisticsPageProps> = ({ initialTab = 'live
     }
   };
 
+  const openEditVehicle = (v: Vehicle) => {
+    setEditingVehicle(v);
+    setEditPlate(v.plate_number);
+    setEditModel(v.model);
+    setEditCapacity(v.capacity_kg);
+    setEditMinTemp(v.min_temp_c ?? 1.0);
+    setEditMaxTemp(v.max_temp_c ?? 6.0);
+    setEditStatus(v.status || 'AVAILABLE');
+    setIsEditVehicleOpen(true);
+  };
+
+  const handleUpdateVehicle = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingVehicle) return;
+    const res = await api.put(`/api/logistics/vehicles/${editingVehicle.id}`, {
+      plate_number: editPlate,
+      model: editModel,
+      capacity_kg: editCapacity,
+      min_temp_c: editMinTemp,
+      max_temp_c: editMaxTemp,
+      status: editStatus
+    });
+    if (res.success) {
+      setIsEditVehicleOpen(false);
+      setEditingVehicle(null);
+      fetchLogistics();
+    } else {
+      alert(res.error || 'Failed to update vehicle');
+    }
+  };
+
+  const handleDeleteVehicle = async (v: Vehicle) => {
+    if (!window.confirm(`Are you sure you want to delete vehicle "${v.plate_number}"?`)) return;
+    const res = await api.delete(`/api/logistics/vehicles/${v.id}`);
+    if (res.success) {
+      fetchLogistics();
+    } else {
+      alert(res.error || 'Failed to delete vehicle');
+    }
+  };
+
+  const handleDeleteShipment = async (s: Shipment) => {
+    if (!window.confirm(`Cancel and delete shipment "${s.shipment_number}"?`)) return;
+    const res = await api.delete(`/api/logistics/shipments/${s.id}`);
+    if (res.success) {
+      fetchLogistics();
+    } else {
+      alert(res.error || 'Failed to cancel shipment');
+    }
+  };
+
   const mapMarkers: MapMarkerItem[] = [
     // Live vehicle markers
     ...vehicles.map(v => {
@@ -337,6 +398,19 @@ export const LogisticsPage: React.FC<LogisticsPageProps> = ({ initialTab = 'live
           {s.status}
         </span>
       )
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (s) => (
+        <button
+          onClick={() => handleDeleteShipment(s)}
+          title="Cancel & Delete Shipment"
+          className="p-1.5 rounded-lg border border-rose-200 dark:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      )
     }
   ];
 
@@ -413,6 +487,28 @@ export const LogisticsPage: React.FC<LogisticsPageProps> = ({ initialTab = 'live
         }`}>
           {v.status}
         </span>
+      )
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (v) => (
+        <div className="flex items-center space-x-1">
+          <button
+            onClick={() => openEditVehicle(v)}
+            title="Edit Vehicle"
+            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
+          >
+            <Edit2 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => handleDeleteVehicle(v)}
+            title="Delete Vehicle"
+            className="p-1.5 rounded-lg border border-rose-200 dark:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
       )
     }
   ];
@@ -1064,6 +1160,101 @@ export const LogisticsPage: React.FC<LogisticsPageProps> = ({ initialTab = 'live
                   className="px-4 py-2 bg-cold-600 hover:bg-cold-700 text-white font-bold rounded-xl shadow"
                 >
                   Activate Geofence
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Vehicle Modal */}
+      {isEditVehicleOpen && editingVehicle && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 w-full max-w-md p-6 shadow-2xl space-y-4">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">Edit Fleet Vehicle ({editingVehicle.plate_number})</h3>
+            <form onSubmit={handleUpdateVehicle} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">License Plate Number</label>
+                <input
+                  type="text"
+                  required
+                  value={editPlate}
+                  onChange={e => setEditPlate(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono uppercase"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Vehicle Model & Reefer Unit</label>
+                <input
+                  type="text"
+                  required
+                  value={editModel}
+                  onChange={e => setEditModel(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Payload Capacity (KG)</label>
+                <input
+                  type="number"
+                  required
+                  value={editCapacity}
+                  onChange={e => setEditCapacity(parseFloat(e.target.value))}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Min Temp (°C)</label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={editMinTemp}
+                    onChange={e => setEditMinTemp(parseFloat(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Max Temp (°C)</label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={editMaxTemp}
+                    onChange={e => setEditMaxTemp(parseFloat(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Vehicle Status</label>
+                <select
+                  value={editStatus}
+                  onChange={e => setEditStatus(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-semibold"
+                >
+                  <option value="AVAILABLE">AVAILABLE (In Depot)</option>
+                  <option value="IN_TRANSIT">IN_TRANSIT (Dispatched)</option>
+                  <option value="MAINTENANCE">MAINTENANCE (Offline Inspection)</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setIsEditVehicleOpen(false)}
+                  className="px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-xl font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-cold-600 hover:bg-cold-700 text-white font-bold rounded-xl shadow"
+                >
+                  Update Vehicle
                 </button>
               </div>
             </form>

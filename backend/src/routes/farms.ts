@@ -104,4 +104,60 @@ router.get('/farmers/all', authenticate, enforceTenant, (req: Request, res: Resp
   }
 });
 
+// PUT /api/farms/:id (Edit Farm)
+router.put('/:id', authenticate, enforceTenant, (req: Request, res: Response): void => {
+  try {
+    const { id } = req.params;
+    const { name, location, latitude, longitude, size_acres, crop_types, capacity_tons, certification, contact_phone } = req.body;
+
+    const existing = db.prepare('SELECT * FROM farms WHERE id = ? AND tenant_id = ?').get(id, req.tenantId) as any;
+    if (!existing) {
+      res.status(404).json({ success: false, error: 'Farm not found' });
+      return;
+    }
+
+    db.prepare(`
+      UPDATE farms SET name = ?, location = ?, latitude = ?, longitude = ?, size_acres = ?, crop_types = ?, capacity_tons = ?, certification = ?, contact_phone = ?
+      WHERE id = ?
+    `).run(
+      name || existing.name,
+      location || existing.location,
+      latitude !== undefined ? latitude : existing.latitude,
+      longitude !== undefined ? longitude : existing.longitude,
+      size_acres !== undefined ? size_acres : existing.size_acres,
+      crop_types || existing.crop_types,
+      capacity_tons !== undefined ? capacity_tons : existing.capacity_tons,
+      certification || existing.certification,
+      contact_phone || existing.contact_phone,
+      id
+    );
+
+    logAudit({ req, action: 'UPDATE_FARM', module: 'FARM', recordId: String(id), newValues: req.body });
+
+    const updated = db.prepare('SELECT * FROM farms WHERE id = ?').get(id);
+    res.json({ success: true, data: updated });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// DELETE /api/farms/:id (Delete Farm)
+router.delete('/:id', authenticate, enforceTenant, (req: Request, res: Response): void => {
+  try {
+    const { id } = req.params;
+    const existing = db.prepare('SELECT * FROM farms WHERE id = ? AND tenant_id = ?').get(id, req.tenantId);
+    if (!existing) {
+      res.status(404).json({ success: false, error: 'Farm not found' });
+      return;
+    }
+
+    db.prepare('DELETE FROM farms WHERE id = ?').run(id);
+    logAudit({ req, action: 'DELETE_FARM', module: 'FARM', recordId: String(id) });
+
+    res.json({ success: true, message: 'Farm deleted successfully', id });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 export default router;

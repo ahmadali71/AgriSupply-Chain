@@ -183,4 +183,76 @@ router.put('/shipments/:id/status', authenticate, enforceTenant, (req: Request, 
   }
 });
 
+// PUT /api/logistics/vehicles/:id (Edit Vehicle)
+router.put('/vehicles/:id', authenticate, enforceTenant, (req: Request, res: Response): void => {
+  try {
+    const { id } = req.params;
+    const { plate_number, model, capacity_kg, min_temp_c, max_temp_c, status } = req.body;
+
+    const existing = db.prepare('SELECT * FROM vehicles WHERE id = ? AND tenant_id = ?').get(id, req.tenantId) as any;
+    if (!existing) {
+      res.status(404).json({ success: false, error: 'Vehicle not found' });
+      return;
+    }
+
+    db.prepare(`
+      UPDATE vehicles SET plate_number = ?, model = ?, capacity_kg = ?, min_temp_c = ?, max_temp_c = ?, status = ?
+      WHERE id = ?
+    `).run(
+      plate_number || existing.plate_number,
+      model || existing.model,
+      capacity_kg !== undefined ? capacity_kg : existing.capacity_kg,
+      min_temp_c !== undefined ? min_temp_c : existing.min_temp_c,
+      max_temp_c !== undefined ? max_temp_c : existing.max_temp_c,
+      status || existing.status,
+      id
+    );
+
+    logAudit({ req, action: 'UPDATE_VEHICLE', module: 'LOGISTICS', recordId: String(id), newValues: req.body });
+
+    const updated = db.prepare('SELECT * FROM vehicles WHERE id = ?').get(id);
+    res.json({ success: true, data: updated });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// DELETE /api/logistics/vehicles/:id (Delete Vehicle)
+router.delete('/vehicles/:id', authenticate, enforceTenant, (req: Request, res: Response): void => {
+  try {
+    const { id } = req.params;
+    const existing = db.prepare('SELECT * FROM vehicles WHERE id = ? AND tenant_id = ?').get(id, req.tenantId);
+    if (!existing) {
+      res.status(404).json({ success: false, error: 'Vehicle not found' });
+      return;
+    }
+
+    db.prepare('DELETE FROM vehicles WHERE id = ?').run(id);
+    logAudit({ req, action: 'DELETE_VEHICLE', module: 'LOGISTICS', recordId: String(id) });
+
+    res.json({ success: true, message: 'Vehicle deleted successfully', id });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// DELETE /api/logistics/shipments/:id (Delete / Cancel Shipment)
+router.delete('/shipments/:id', authenticate, enforceTenant, (req: Request, res: Response): void => {
+  try {
+    const { id } = req.params;
+    const existing = db.prepare('SELECT * FROM shipments WHERE id = ? AND tenant_id = ?').get(id, req.tenantId);
+    if (!existing) {
+      res.status(404).json({ success: false, error: 'Shipment not found' });
+      return;
+    }
+
+    db.prepare('DELETE FROM shipments WHERE id = ?').run(id);
+    logAudit({ req, action: 'DELETE_SHIPMENT', module: 'LOGISTICS', recordId: String(id) });
+
+    res.json({ success: true, message: 'Shipment cancelled and removed successfully', id });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 export default router;

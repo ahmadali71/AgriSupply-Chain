@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Plus, ClipboardCheck, History, QrCode, Wheat, Sprout, ArrowRight, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+import { Package, Plus, ClipboardCheck, History, QrCode, Wheat, Sprout, ArrowRight, CheckCircle2, XCircle, AlertTriangle, Edit2, Trash2 } from 'lucide-react';
 import { Batch } from '../types';
 import { api } from '../services/api';
 import { DataTable, Column } from '../components/DataTable';
@@ -26,6 +26,31 @@ export const BatchesPage: React.FC<BatchesPageProps> = ({ onOpenTrace, initialTa
   const [expiryDate, setExpiryDate] = useState('2026-10-30');
   const [minTemp, setMinTemp] = useState(2.0);
   const [maxTemp, setMaxTemp] = useState(8.0);
+
+  // Edit Batch state
+  const [editingBatch, setEditingBatch] = useState<Batch | null>(null);
+  const [isEditBatchOpen, setIsEditBatchOpen] = useState(false);
+  const [editProductName, setEditProductName] = useState('');
+  const [editQuantityKg, setEditQuantityKg] = useState(0);
+  const [editQualityGrade, setEditQualityGrade] = useState('GRADE_A');
+  const [editExpiryDate, setEditExpiryDate] = useState('');
+  const [editMinTemp, setEditMinTemp] = useState(2.0);
+  const [editMaxTemp, setEditMaxTemp] = useState(8.0);
+  const [editBatchStatus, setEditBatchStatus] = useState('CREATED');
+
+  // Crop states
+  const [isCreateCropOpen, setIsCreateCropOpen] = useState(false);
+  const [cropName, setCropName] = useState('');
+  const [cropVariety, setCropVariety] = useState('');
+  const [cropTargetYield, setCropTargetYield] = useState(10000);
+  const [cropGrowthStage, setCropGrowthStage] = useState('GROWING');
+
+  const [editingCrop, setEditingCrop] = useState<any | null>(null);
+  const [isEditCropOpen, setIsEditCropOpen] = useState(false);
+  const [editCropName, setEditCropName] = useState('');
+  const [editCropVariety, setEditCropVariety] = useState('');
+  const [editCropTargetYield, setEditCropTargetYield] = useState(10000);
+  const [editCropGrowthStage, setEditCropGrowthStage] = useState('GROWING');
 
   useEffect(() => {
     if (initialTab) {
@@ -70,6 +95,115 @@ export const BatchesPage: React.FC<BatchesPageProps> = ({ onOpenTrace, initialTa
       fetchData();
     } else {
       alert(res.error || 'Failed to create batch');
+    }
+  };
+
+  const openEditBatch = (b: Batch) => {
+    setEditingBatch(b);
+    setEditProductName(b.product_name);
+    setEditQuantityKg(b.quantity_kg);
+    setEditQualityGrade(b.quality_grade);
+    setEditExpiryDate(b.expiry_date || '');
+    setEditMinTemp(b.min_temp_c ?? 2.0);
+    setEditMaxTemp(b.max_temp_c ?? 8.0);
+    setEditBatchStatus(b.status || 'CREATED');
+    setIsEditBatchOpen(true);
+  };
+
+  const handleUpdateBatch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingBatch) return;
+    const res = await api.put(`/api/batches/${editingBatch.id}`, {
+      product_name: editProductName,
+      quantity_kg: editQuantityKg,
+      quality_grade: editQualityGrade,
+      expiry_date: editExpiryDate,
+      min_temp_c: editMinTemp,
+      max_temp_c: editMaxTemp,
+      status: editBatchStatus
+    });
+    if (res.success) {
+      setIsEditBatchOpen(false);
+      setEditingBatch(null);
+      fetchData();
+    } else {
+      alert(res.error || 'Failed to update batch');
+    }
+  };
+
+  const handleDeleteBatch = async (b: Batch) => {
+    if (!window.confirm(`Are you sure you want to delete batch "${b.batch_number}"?`)) return;
+    const res = await api.delete(`/api/batches/${b.id}`);
+    if (res.success) {
+      fetchData();
+    } else {
+      alert(res.error || 'Failed to delete batch');
+    }
+  };
+
+  const handleCreateCrop = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const res = await api.post('/api/crops', {
+      farm_id: 'farm-01',
+      name: cropName,
+      variety: cropVariety,
+      growth_stage: cropGrowthStage,
+      target_yield_kg: cropTargetYield
+    });
+    if (res.success) {
+      setIsCreateCropOpen(false);
+      setCropName('');
+      setCropVariety('');
+      fetchData();
+    } else {
+      alert(res.error || 'Failed to register crop');
+    }
+  };
+
+  const openEditCrop = (c: any) => {
+    setEditingCrop(c);
+    setEditCropName(c.name || '');
+    setEditCropVariety(c.variety || '');
+    setEditCropTargetYield(c.target_yield_kg || c.expected_yield_kg || 10000);
+    setEditCropGrowthStage(c.growth_stage || c.status || 'GROWING');
+    setIsEditCropOpen(true);
+  };
+
+  const handleUpdateCrop = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCrop) return;
+    const res = await api.put(`/api/crops/${editingCrop.id}`, {
+      name: editCropName,
+      variety: editCropVariety,
+      growth_stage: editCropGrowthStage,
+      target_yield_kg: editCropTargetYield
+    });
+    if (res.success) {
+      setIsEditCropOpen(false);
+      setEditingCrop(null);
+      fetchData();
+    } else {
+      alert(res.error || 'Failed to update crop');
+    }
+  };
+
+  const handleDeleteCrop = async (c: any) => {
+    if (!window.confirm(`Are you sure you want to delete crop "${c.name || c.variety}"?`)) return;
+    const res = await api.delete(`/api/crops/${c.id}`);
+    if (res.success) {
+      fetchData();
+    } else {
+      alert(res.error || 'Failed to delete crop');
+    }
+  };
+
+  const handleDeleteInspection = async (i: any) => {
+    if (!window.confirm(`Delete inspection record for batch "${i.batch_number || i.batch_id}"?`)) return;
+    const res = await api.delete(`/api/inspections/${i.id}`);
+    if (res.success) {
+      fetchData();
+    } else {
+      alert(res.error || 'Failed to delete inspection');
     }
   };
 
@@ -131,11 +265,11 @@ export const BatchesPage: React.FC<BatchesPageProps> = ({ onOpenTrace, initialTa
       key: 'actions',
       header: 'Trace & QA Actions',
       render: (b) => (
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-1.5">
           {b.status === 'INSPECTION_PENDING' && (
             <button
               onClick={() => setSelectedBatchForInspection(b)}
-              className="px-2.5 py-1 rounded-lg bg-agri-600 hover:bg-agri-700 text-white text-xs font-semibold inline-flex items-center space-x-1 shadow-2xs"
+              className="px-2 py-1 rounded-lg bg-agri-600 hover:bg-agri-700 text-white text-xs font-semibold inline-flex items-center space-x-1 shadow-2xs"
             >
               <ClipboardCheck className="w-3.5 h-3.5" />
               <span>Inspect</span>
@@ -143,10 +277,24 @@ export const BatchesPage: React.FC<BatchesPageProps> = ({ onOpenTrace, initialTa
           )}
           <button
             onClick={() => onOpenTrace(b.batch_number)}
-            className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold inline-flex items-center space-x-1"
+            className="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold inline-flex items-center space-x-1"
           >
             <History className="w-3.5 h-3.5 text-cold-500" />
             <span>Trace</span>
+          </button>
+          <button
+            onClick={() => openEditBatch(b)}
+            title="Edit Batch"
+            className="p-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
+          >
+            <Edit2 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => handleDeleteBatch(b)}
+            title="Delete Batch"
+            className="p-1 rounded-lg border border-rose-200 dark:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
       )
@@ -191,8 +339,30 @@ export const BatchesPage: React.FC<BatchesPageProps> = ({ onOpenTrace, initialTa
       header: 'Growth Stage',
       render: (c) => (
         <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-          {c.status || 'HARVEST_READY'}
+          {c.status || c.growth_stage || 'HARVEST_READY'}
         </span>
+      )
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (c) => (
+        <div className="flex items-center space-x-1">
+          <button
+            onClick={() => openEditCrop(c)}
+            title="Edit Crop"
+            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
+          >
+            <Edit2 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => handleDeleteCrop(c)}
+            title="Delete Crop"
+            className="p-1.5 rounded-lg border border-rose-200 dark:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
       )
     }
   ];
@@ -239,6 +409,19 @@ export const BatchesPage: React.FC<BatchesPageProps> = ({ onOpenTrace, initialTa
         }`}>
           {i.result}
         </span>
+      )
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (i) => (
+        <button
+          onClick={() => handleDeleteInspection(i)}
+          title="Delete Inspection Record"
+          className="p-1.5 rounded-lg border border-rose-200 dark:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
       )
     }
   ];
@@ -310,7 +493,16 @@ export const BatchesPage: React.FC<BatchesPageProps> = ({ onOpenTrace, initialTa
 
       {tab === 'crops' && (
         <div className="glass-panel p-6 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-4">
-          <h3 className="text-base font-bold text-slate-900 dark:text-white">Active Crop Cultivations & Harvest Schedules</h3>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">Active Crop Cultivations & Harvest Schedules</h3>
+            <button
+              onClick={() => setIsCreateCropOpen(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-agri-600 hover:bg-agri-700 text-white font-bold text-xs inline-flex items-center space-x-1.5 shadow-xs self-start"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Register Crop Variety</span>
+            </button>
+          </div>
           <DataTable data={crops} columns={cropColumns} searchPlaceholder="Search crops, farms, varieties..." />
         </div>
       )}
@@ -397,6 +589,247 @@ export const BatchesPage: React.FC<BatchesPageProps> = ({ onOpenTrace, initialTa
                   className="px-4 py-2 rounded-xl bg-agri-600 text-white font-bold"
                 >
                   Generate Batch
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Batch Modal */}
+      {isEditBatchOpen && editingBatch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 w-full max-w-md p-6 shadow-2xl space-y-4">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">Edit Produce Batch {editingBatch.batch_number}</h3>
+            <form onSubmit={handleUpdateBatch} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Product Name</label>
+                <input
+                  type="text"
+                  value={editProductName}
+                  onChange={(e) => setEditProductName(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Quantity (KG)</label>
+                  <input
+                    type="number"
+                    value={editQuantityKg}
+                    onChange={(e) => setEditQuantityKg(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Quality Grade</label>
+                  <select
+                    value={editQualityGrade}
+                    onChange={(e) => setEditQualityGrade(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                  >
+                    <option value="GRADE_A">Grade A (Export / Premium)</option>
+                    <option value="GRADE_B">Grade B (Standard Commercial)</option>
+                    <option value="GRADE_C">Grade C (Processing)</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Min Temp (°C)</label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={editMinTemp}
+                    onChange={(e) => setEditMinTemp(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Max Temp (°C)</label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={editMaxTemp}
+                    onChange={(e) => setEditMaxTemp(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Status</label>
+                <select
+                  value={editBatchStatus}
+                  onChange={(e) => setEditBatchStatus(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                >
+                  <option value="CREATED">CREATED</option>
+                  <option value="INSPECTION_PENDING">INSPECTION_PENDING</option>
+                  <option value="APPROVED">APPROVED</option>
+                  <option value="PACKAGED">PACKAGED</option>
+                  <option value="SHIPPED">SHIPPED</option>
+                  <option value="REJECTED">REJECTED</option>
+                </select>
+              </div>
+              <div className="flex justify-end space-x-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsEditBatchOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-agri-600 text-white font-bold"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create Crop Modal */}
+      {isCreateCropOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 w-full max-w-md p-6 shadow-2xl space-y-4">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">Register Crop Variety</h3>
+            <form onSubmit={handleCreateCrop} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Crop Name</label>
+                <input
+                  type="text"
+                  value={cropName}
+                  onChange={(e) => setCropName(e.target.value)}
+                  placeholder="e.g. Organic Strawberries"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Variety</label>
+                <input
+                  type="text"
+                  value={cropVariety}
+                  onChange={(e) => setCropVariety(e.target.value)}
+                  placeholder="e.g. Albion Sweet"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Target Yield (KG)</label>
+                  <input
+                    type="number"
+                    value={cropTargetYield}
+                    onChange={(e) => setCropTargetYield(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Growth Stage</label>
+                  <select
+                    value={cropGrowthStage}
+                    onChange={(e) => setCropGrowthStage(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                  >
+                    <option value="SEEDING">SEEDING</option>
+                    <option value="VEGETATIVE">VEGETATIVE</option>
+                    <option value="FLOWERING">FLOWERING</option>
+                    <option value="FRUITING">FRUITING</option>
+                    <option value="HARVEST_READY">HARVEST_READY</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex justify-end space-x-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateCropOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-agri-600 text-white font-bold"
+                >
+                  Save Crop
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Crop Modal */}
+      {isEditCropOpen && editingCrop && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 w-full max-w-md p-6 shadow-2xl space-y-4">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">Edit Crop Variety</h3>
+            <form onSubmit={handleUpdateCrop} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Crop Name</label>
+                <input
+                  type="text"
+                  value={editCropName}
+                  onChange={(e) => setEditCropName(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Variety</label>
+                <input
+                  type="text"
+                  value={editCropVariety}
+                  onChange={(e) => setEditCropVariety(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Target Yield (KG)</label>
+                  <input
+                    type="number"
+                    value={editCropTargetYield}
+                    onChange={(e) => setEditCropTargetYield(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Growth Stage</label>
+                  <select
+                    value={editCropGrowthStage}
+                    onChange={(e) => setEditCropGrowthStage(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                  >
+                    <option value="SEEDING">SEEDING</option>
+                    <option value="VEGETATIVE">VEGETATIVE</option>
+                    <option value="FLOWERING">FLOWERING</option>
+                    <option value="FRUITING">FRUITING</option>
+                    <option value="HARVEST_READY">HARVEST_READY</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex justify-end space-x-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsEditCropOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-agri-600 text-white font-bold"
+                >
+                  Update Crop
                 </button>
               </div>
             </form>

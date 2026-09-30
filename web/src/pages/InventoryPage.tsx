@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Boxes, Warehouse, ArrowRightLeft, ShieldCheck, Thermometer, Plus, MapPin, Building2, Layers } from 'lucide-react';
+import { Boxes, Warehouse, ArrowRightLeft, ShieldCheck, Thermometer, Plus, MapPin, Building2, Layers, Edit2, Trash2 } from 'lucide-react';
 import { InventoryItem, Warehouse as WarehouseType } from '../types';
 import { api } from '../services/api';
 import { DataTable, Column } from '../components/DataTable';
@@ -34,6 +34,26 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ initialTab = 'inve
   const [whLng, setWhLng] = useState(-122.2712);
   const [whSqft, setWhSqft] = useState(45000);
   const [whColdRooms, setWhColdRooms] = useState(6);
+
+  // Edit warehouse form
+  const [editingWarehouse, setEditingWarehouse] = useState<WarehouseType | null>(null);
+  const [isEditWarehouseOpen, setIsEditWarehouseOpen] = useState(false);
+  const [editWhName, setEditWhName] = useState('');
+  const [editWhCode, setEditWhCode] = useState('');
+  const [editWhAddress, setEditWhAddress] = useState('');
+  const [editWhLat, setEditWhLat] = useState(37.8044);
+  const [editWhLng, setEditWhLng] = useState(-122.2712);
+  const [editWhSqft, setEditWhSqft] = useState(45000);
+  const [editWhColdRooms, setEditWhColdRooms] = useState(6);
+
+  // Edit inventory form
+  const [editingInventory, setEditingInventory] = useState<InventoryItem | null>(null);
+  const [isEditInventoryOpen, setIsEditInventoryOpen] = useState(false);
+  const [editAvailQty, setEditAvailQty] = useState(0);
+  const [editReservedQty, setEditReservedQty] = useState(0);
+  const [editDamagedQty, setEditDamagedQty] = useState(0);
+  const [editInvStatus, setEditInvStatus] = useState('AVAILABLE');
+  const [editInvExpiry, setEditInvExpiry] = useState('');
 
   useEffect(() => {
     if (initialTab) {
@@ -110,6 +130,88 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ initialTab = 'inve
     }
   };
 
+  const openEditWarehouse = (w: WarehouseType) => {
+    setEditingWarehouse(w);
+    setEditWhName(w.name);
+    setEditWhCode(w.code);
+    setEditWhAddress(w.address || '');
+    setEditWhLat(w.latitude || 37.8044);
+    setEditWhLng(w.longitude || -122.2712);
+    setEditWhSqft(w.total_capacity_sqft || 45000);
+    setEditWhColdRooms(w.total_cold_rooms || 6);
+    setIsEditWarehouseOpen(true);
+  };
+
+  const handleUpdateWarehouse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingWarehouse) return;
+    const res = await api.put(`/api/warehouses/${editingWarehouse.id}`, {
+      name: editWhName,
+      code: editWhCode,
+      address: editWhAddress,
+      latitude: editWhLat,
+      longitude: editWhLng,
+      total_capacity_sqft: editWhSqft,
+      total_cold_rooms: editWhColdRooms
+    });
+    if (res.success) {
+      setIsEditWarehouseOpen(false);
+      setEditingWarehouse(null);
+      fetchInventoryData();
+    } else {
+      alert(res.error || 'Failed to update warehouse');
+    }
+  };
+
+  const handleDeleteWarehouse = async (w: WarehouseType) => {
+    if (!window.confirm(`Are you sure you want to delete warehouse "${w.name}"?`)) return;
+    const res = await api.delete(`/api/warehouses/${w.id}`);
+    if (res.success) {
+      fetchInventoryData();
+    } else {
+      alert(res.error || 'Failed to delete warehouse');
+    }
+  };
+
+  const openEditInventory = (item: InventoryItem) => {
+    setEditingInventory(item);
+    setEditAvailQty(item.available_qty_kg);
+    setEditReservedQty(item.reserved_qty_kg);
+    setEditDamagedQty(item.damaged_qty_kg || 0);
+    setEditInvStatus(item.status);
+    setEditInvExpiry(item.expiry_date || '');
+    setIsEditInventoryOpen(true);
+  };
+
+  const handleUpdateInventory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingInventory) return;
+    const res = await api.put(`/api/inventory/${editingInventory.id}`, {
+      available_qty_kg: editAvailQty,
+      reserved_qty_kg: editReservedQty,
+      damaged_qty_kg: editDamagedQty,
+      status: editInvStatus,
+      expiry_date: editInvExpiry
+    });
+    if (res.success) {
+      setIsEditInventoryOpen(false);
+      setEditingInventory(null);
+      fetchInventoryData();
+    } else {
+      alert(res.error || 'Failed to update inventory record');
+    }
+  };
+
+  const handleDeleteInventory = async (item: InventoryItem) => {
+    if (!window.confirm(`Scrap / Remove inventory record for "${item.product_name} (${item.batch_number})"?`)) return;
+    const res = await api.delete(`/api/inventory/${item.id}`);
+    if (res.success) {
+      fetchInventoryData();
+    } else {
+      alert(res.error || 'Failed to delete inventory record');
+    }
+  };
+
   const inventoryColumns: Column<InventoryItem>[] = [
     {
       key: 'product_name',
@@ -165,6 +267,28 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ initialTab = 'inve
           {item.status}
         </span>
       )
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (item) => (
+        <div className="flex items-center space-x-1">
+          <button
+            onClick={() => openEditInventory(item)}
+            title="Edit Stock / Status"
+            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
+          >
+            <Edit2 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => handleDeleteInventory(item)}
+            title="Scrap / Remove Stock"
+            className="p-1.5 rounded-lg border border-rose-200 dark:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )
     }
   ];
 
@@ -217,6 +341,28 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ initialTab = 'inve
         <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
           OPERATIONAL
         </span>
+      )
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (w) => (
+        <div className="flex items-center space-x-1">
+          <button
+            onClick={() => openEditWarehouse(w)}
+            title="Edit Warehouse"
+            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
+          >
+            <Edit2 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => handleDeleteWarehouse(w)}
+            title="Delete Warehouse"
+            className="p-1.5 rounded-lg border border-rose-200 dark:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
       )
     }
   ];
@@ -508,6 +654,196 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ initialTab = 'inve
                   className="px-4 py-2 bg-cold-600 hover:bg-cold-700 text-white font-bold rounded-xl shadow"
                 >
                   Create Cold Hub
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Warehouse Modal */}
+      {isEditWarehouseOpen && editingWarehouse && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 w-full max-w-md p-6 shadow-2xl space-y-4">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">Edit Cold Hub ({editingWarehouse.code})</h3>
+            <form onSubmit={handleUpdateWarehouse} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Hub Facility Name</label>
+                <input
+                  type="text"
+                  required
+                  value={editWhName}
+                  onChange={e => setEditWhName(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Facility Code</label>
+                <input
+                  type="text"
+                  required
+                  value={editWhCode}
+                  onChange={e => setEditWhCode(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono uppercase"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Physical Address</label>
+                <input
+                  type="text"
+                  required
+                  value={editWhAddress}
+                  onChange={e => setEditWhAddress(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Latitude</label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    required
+                    value={editWhLat}
+                    onChange={e => setEditWhLat(parseFloat(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Longitude</label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    required
+                    value={editWhLng}
+                    onChange={e => setEditWhLng(parseFloat(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Surface Area (Sqft)</label>
+                  <input
+                    type="number"
+                    required
+                    value={editWhSqft}
+                    onChange={e => setEditWhSqft(parseInt(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Cold Chambers</label>
+                  <input
+                    type="number"
+                    required
+                    value={editWhColdRooms}
+                    onChange={e => setEditWhColdRooms(parseInt(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setIsEditWarehouseOpen(false)}
+                  className="px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-xl font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-cold-600 hover:bg-cold-700 text-white font-bold rounded-xl shadow"
+                >
+                  Update Cold Hub
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Inventory Item Modal */}
+      {isEditInventoryOpen && editingInventory && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 w-full max-w-md p-6 shadow-2xl space-y-4">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">Edit Stock Levels - {editingInventory.product_name}</h3>
+            <form onSubmit={handleUpdateInventory} className="space-y-3 text-xs">
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Available (KG)</label>
+                  <input
+                    type="number"
+                    required
+                    value={editAvailQty}
+                    onChange={e => setEditAvailQty(parseFloat(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Reserved (KG)</label>
+                  <input
+                    type="number"
+                    required
+                    value={editReservedQty}
+                    onChange={e => setEditReservedQty(parseFloat(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Damaged (KG)</label>
+                  <input
+                    type="number"
+                    value={editDamagedQty}
+                    onChange={e => setEditDamagedQty(parseFloat(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-rose-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Storage State / Quality Status</label>
+                <select
+                  value={editInvStatus}
+                  onChange={e => setEditInvStatus(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-semibold"
+                >
+                  <option value="AVAILABLE">AVAILABLE (Normal Stock)</option>
+                  <option value="RESERVED">RESERVED (Staged for Transit)</option>
+                  <option value="EXPIRED">EXPIRED (Past FEFO Limit)</option>
+                  <option value="DAMAGED">DAMAGED (Quarantined)</option>
+                  <option value="QUARANTINED">QUARANTINED (QA Hold)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">FEFO Expiration Date</label>
+                <input
+                  type="date"
+                  value={editInvExpiry}
+                  onChange={e => setEditInvExpiry(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setIsEditInventoryOpen(false)}
+                  className="px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-xl font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-agri-600 hover:bg-agri-700 text-white font-bold rounded-xl shadow"
+                >
+                  Save Stock Changes
                 </button>
               </div>
             </form>

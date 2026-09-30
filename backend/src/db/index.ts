@@ -91,45 +91,11 @@ const DEMO_INVENTORY = [
   { id: 'inv-03', tenant_id: 'tenant-greenvalley', product_name: 'Crisp Romaine Lettuce', batch_number: 'BATCH-2026-LET-03', warehouse_id: 'wh-bakers-03', warehouse_name: 'Bakersfield Agro Storage', warehouse_code: 'BAK-C', zone_name: 'Zone B (2°C)', rack: 'R2-08', shelf: 'S3', target_temp_c: 2.0, available_qty_kg: 3100, reserved_qty_kg: 400, damaged_qty_kg: 0, unit: 'KG', expiry_date: '2026-10-09', status: 'IN_STORAGE', quality_grade: 'GRADE_A' }
 ];
 
+import { createResilientDbDriver } from './mockStore.js';
+
 if (!dbInstance) {
-  console.warn('[DB] Native better-sqlite3 not initialized, activating resilient serverless store');
-  dbInstance = {
-    prepare: (query: string) => ({
-      get: (...args: any[]) => {
-        const q = (query || '').toLowerCase();
-        if (q.includes('from warehouses')) {
-          return { ...DEMO_WAREHOUSES[0] };
-        }
-        if (q.includes('from users')) {
-          const emailArg = args.find(a => typeof a === 'string' && a.includes('@'));
-          if (emailArg) {
-            const found = DEMO_USERS.find(u => u.email.toLowerCase() === emailArg.toLowerCase());
-            if (found) return { ...found };
-            if (emailArg.includes('farm')) return { ...DEMO_USERS[1] };
-            if (emailArg.includes('drive') || emailArg.includes('elena')) return { ...DEMO_USERS[2] };
-            if (emailArg.includes('ware') || emailArg.includes('marcus')) return { ...DEMO_USERS[3] };
-          }
-          return { ...DEMO_USERS[0] };
-        }
-        if (q.includes('tenants')) {
-          return { id: 'tenant-greenvalley', name: 'GreenValley Agro Logistics', slug: 'greenvalley', plan: 'ENTERPRISE', status: 'ACTIVE' };
-        }
-        return { alive: 1, c: 5 };
-      },
-      all: (...args: any[]) => {
-        const q = (query || '').toLowerCase();
-        if (q.includes('from warehouses')) return DEMO_WAREHOUSES;
-        if (q.includes('from vehicles')) return DEMO_VEHICLES;
-        if (q.includes('from inventory')) return DEMO_INVENTORY;
-        if (q.includes('from users')) return DEMO_USERS;
-        return [];
-      },
-      run: (...args: any[]) => ({ changes: 1, lastInsertRowid: 1 })
-    }),
-    exec: () => {},
-    pragma: () => {},
-    transaction: (fn: any) => fn
-  };
+  console.warn('[DB] Native better-sqlite3 not initialized, activating resilient serverless store with persistent JSON/memory engine');
+  dbInstance = createResilientDbDriver();
 }
 
 export const db = dbInstance;

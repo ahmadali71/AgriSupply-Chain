@@ -90,4 +90,60 @@ router.get('/locations/all', authenticate, enforceTenant, (req: Request, res: Re
   }
 });
 
+// PUT /api/warehouses/:id (Edit Warehouse)
+router.put('/:id', authenticate, enforceTenant, (req: Request, res: Response): void => {
+  try {
+    const { id } = req.params;
+    const { name, code, address, latitude, longitude, total_capacity_sqft, total_cold_rooms, manager_id, status } = req.body;
+
+    const existing = db.prepare('SELECT * FROM warehouses WHERE id = ? AND tenant_id = ?').get(id, req.tenantId) as any;
+    if (!existing) {
+      res.status(404).json({ success: false, error: 'Warehouse not found' });
+      return;
+    }
+
+    db.prepare(`
+      UPDATE warehouses SET name = ?, code = ?, address = ?, latitude = ?, longitude = ?, total_capacity_sqft = ?, total_cold_rooms = ?, manager_id = ?, status = ?
+      WHERE id = ?
+    `).run(
+      name || existing.name,
+      code || existing.code,
+      address || existing.address,
+      latitude !== undefined ? latitude : existing.latitude,
+      longitude !== undefined ? longitude : existing.longitude,
+      total_capacity_sqft !== undefined ? total_capacity_sqft : existing.total_capacity_sqft,
+      total_cold_rooms !== undefined ? total_cold_rooms : existing.total_cold_rooms,
+      manager_id !== undefined ? manager_id : existing.manager_id,
+      status || existing.status,
+      id
+    );
+
+    logAudit({ req, action: 'UPDATE_WAREHOUSE', module: 'WAREHOUSE', recordId: String(id), newValues: req.body });
+
+    const updated = db.prepare('SELECT * FROM warehouses WHERE id = ?').get(id);
+    res.json({ success: true, data: updated });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// DELETE /api/warehouses/:id (Delete Warehouse)
+router.delete('/:id', authenticate, enforceTenant, (req: Request, res: Response): void => {
+  try {
+    const { id } = req.params;
+    const existing = db.prepare('SELECT * FROM warehouses WHERE id = ? AND tenant_id = ?').get(id, req.tenantId);
+    if (!existing) {
+      res.status(404).json({ success: false, error: 'Warehouse not found' });
+      return;
+    }
+
+    db.prepare('DELETE FROM warehouses WHERE id = ?').run(id);
+    logAudit({ req, action: 'DELETE_WAREHOUSE', module: 'WAREHOUSE', recordId: String(id) });
+
+    res.json({ success: true, message: 'Warehouse deleted successfully', id });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 export default router;
