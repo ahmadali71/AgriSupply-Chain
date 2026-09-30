@@ -3,6 +3,7 @@ import cors from 'cors';
 import http from 'http';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 
 dotenv.config();
 
@@ -75,6 +76,18 @@ socketServer.init(server);
 if (process.env.ENABLE_IOT_SIMULATOR !== 'false') {
   const interval = parseInt(process.env.SIMULATION_INTERVAL_MS || '3000');
   iotSimulator.start(interval);
+}
+
+// Serve Web Client assets in production if built
+const clientDistPath = path.resolve(__dirname, '../../web/dist');
+if (fs.existsSync(clientDistPath)) {
+  app.use(express.static(clientDistPath));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/health') || req.path.startsWith('/ws')) {
+      return next();
+    }
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
 }
 
 // Global Error Handler

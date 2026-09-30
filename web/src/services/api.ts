@@ -1,6 +1,6 @@
 import { offlineDb } from './offlineDb';
 
-const BASE_URL = '';
+const BASE_URL = (import.meta as any).env?.VITE_API_URL || '';
 
 export interface ApiResponse<T = any> {
   success: boolean;

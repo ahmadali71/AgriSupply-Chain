@@ -67,13 +67,21 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     let pingInterval: any;
 
     function connect() {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const hostname = window.location.hostname || 'localhost';
-      // In development (ports 3000, 5173, etc.), the backend is on port 5000.
-      const isDevPort = ['3000', '5173', '4173'].includes(window.location.port);
-      const wsPort = isDevPort ? '5000' : (window.location.port || (protocol === 'wss:' ? '443' : '80'));
-      const wsHost = `${hostname}:${wsPort}`;
-      const url = `${protocol}//${wsHost}/ws?tenant_id=${activeTenantId}`;
+      let url: string;
+      const customWsUrl = (import.meta as any).env?.VITE_WS_URL;
+      if (customWsUrl) {
+        url = customWsUrl.includes('?') 
+          ? `${customWsUrl}&tenant_id=${activeTenantId}` 
+          : `${customWsUrl}?tenant_id=${activeTenantId}`;
+      } else {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const hostname = window.location.hostname || 'localhost';
+        // In development (ports 3000, 5173, etc.), the backend is on port 5000.
+        const isDevPort = ['3000', '5173', '4173'].includes(window.location.port);
+        const wsPort = isDevPort ? '5000' : (window.location.port || (protocol === 'wss:' ? '443' : '80'));
+        const wsHost = `${hostname}:${wsPort}`;
+        url = `${protocol}//${wsHost}/ws?tenant_id=${activeTenantId}`;
+      }
 
       try {
         const ws = new WebSocket(url);
