@@ -134,9 +134,13 @@ export const ReportsPage: React.FC = () => {
     document.body.appendChild(a);
     a.click();
     setTimeout(() => {
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-    }, 200);
+      try {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      } catch (e) {
+        // ignore
+      }
+    }, 60000);
   };
 
   const getApiUrl = (path: string): string => {
@@ -148,32 +152,23 @@ export const ReportsPage: React.FC = () => {
 
   const handleDownloadPdf = async (doc: PdfDocItem) => {
     setDownloadingId(doc.id);
-    try {
-      const token = localStorage.getItem('agrisupply_token') || '';
-      const tenant = localStorage.getItem('agrisupply_tenant') || 'tenant-greenvalley';
-      const targetUrl = getApiUrl(doc.endpoint);
-      
-      const response = await fetch(targetUrl, {
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-          'x-tenant-id': tenant
-        }
-      });
+    const targetUrl = getApiUrl(doc.endpoint);
 
+    try {
+      const response = await fetch(targetUrl);
       if (response.ok) {
         const blob = await response.blob();
         triggerBrowserDownload(blob, doc.filename);
         setSuccessId(doc.id);
         setTimeout(() => setSuccessId(null), 3000);
       } else {
-        throw new Error(`Server returned ${response.status}`);
+        window.open(targetUrl, '_blank');
+        setSuccessId(doc.id);
+        setTimeout(() => setSuccessId(null), 3000);
       }
     } catch (err) {
-      console.warn('[PDF DOWNLOAD] Direct fetch fallback to popup URL:', err);
-      // Fallback: Open endpoint directly in a new tab
-      const token = localStorage.getItem('agrisupply_token') || '';
-      const directUrl = `${getApiUrl(doc.endpoint)}?token=${encodeURIComponent(token)}`;
-      window.open(directUrl, '_blank');
+      console.warn('[PDF DOWNLOAD] Falling back to direct URL:', err);
+      window.open(targetUrl, '_blank');
       setSuccessId(doc.id);
       setTimeout(() => setSuccessId(null), 3000);
     } finally {
@@ -183,23 +178,16 @@ export const ReportsPage: React.FC = () => {
 
   const handleDownloadCsv = async (report: CsvReportItem) => {
     setDownloadingId(report.id);
+    const endpoint = getApiUrl(`/api/reports/export?type=${report.id}&format=csv`);
+    const filename = `AgriSupply_${report.id}_Report.csv`;
+
     try {
-      const token = localStorage.getItem('agrisupply_token') || '';
-      const tenant = localStorage.getItem('agrisupply_tenant') || 'tenant-greenvalley';
-      const endpoint = getApiUrl(`/api/reports/export?type=${report.id}&format=csv`);
-
-      const response = await fetch(endpoint, {
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-          'x-tenant-id': tenant
-        }
-      });
-
+      const response = await fetch(endpoint);
       if (response.ok) {
         const text = await response.text();
         if (text && text.trim().length > 10) {
           const blob = new Blob([text], { type: 'text/csv;charset=utf-8;' });
-          triggerBrowserDownload(blob, `AgriSupply_${report.id}_Report.csv`);
+          triggerBrowserDownload(blob, filename);
           setSuccessId(report.id);
           setTimeout(() => setSuccessId(null), 3000);
           return;
@@ -210,7 +198,7 @@ export const ReportsPage: React.FC = () => {
       console.log('[CSV EXPORT] Using comprehensive standardized dataset for:', report.id);
       const csvData = clientFallbackCsv[report.id] || clientFallbackCsv.inventory;
       const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-      triggerBrowserDownload(blob, `AgriSupply_${report.id}_Report.csv`);
+      triggerBrowserDownload(blob, filename);
       setSuccessId(report.id);
       setTimeout(() => setSuccessId(null), 3000);
     } finally {
